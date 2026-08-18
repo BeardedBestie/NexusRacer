@@ -29,7 +29,14 @@ const _proj = new THREE.Vector3();
 // ---------------------------------------------------------------------------
 // Renderer / scene bootstrap
 // ---------------------------------------------------------------------------
-if (new URLSearchParams(location.search).has('grid')) {
+const __q = new URLSearchParams(location.search);
+if (__q.has('card')) {
+  const { runCard } = await import('./sharecard.js');
+  await runCard();
+  throw new Error('share card');   // stop the game from booting
+}
+
+if (__q.has('grid')) {
   const { runGrid } = await import('./devgrid.js');
   await runGrid();
   throw new Error('dev grid');   // stop the game from booting

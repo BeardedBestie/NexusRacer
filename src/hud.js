@@ -51,9 +51,27 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
   animation:widen 1s .3s ease-out both}
 #splash .sub{font-size:13.5px;letter-spacing:.34em;color:#8fb0d4;text-align:center;
   animation:fadeUp 1s .28s ease-out both}
-#splash .cta{margin-top:38px;animation:fadeUp 1s .45s ease-out both}
+#splash .cta{margin-top:34px;animation:fadeUp 1s .45s ease-out both}
 #splash .hint{margin-top:20px;font-size:11px;letter-spacing:.26em;color:#5b7a9c;
   animation:pulse 2.2s infinite}
+#splash .credits{position:absolute;left:0;right:0;bottom:26px;text-align:center;
+  animation:fadeUp 1.2s .7s ease-out both;padding:0 20px}
+#splash .credits .by{font-size:13px;letter-spacing:.16em;color:#8fb0d4;margin-bottom:9px}
+#splash .credits .by a{color:#b6ff3d;text-decoration:none;font-weight:700;
+  border-bottom:1px solid rgba(182,255,61,.35);padding-bottom:1px;transition:.15s}
+#splash .credits .by a:hover{color:#d8ffa0;border-bottom-color:#b6ff3d;
+  text-shadow:0 0 14px rgba(182,255,61,.55)}
+#splash .credits .stack{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:7px;font-size:11.5px;letter-spacing:.1em}
+#splash .credits .stack .lbl{color:#5b7a9c;letter-spacing:.24em;margin-right:3px}
+#splash .credits .stack .sep{color:#3d5570}
+#splash .credits .stack a{color:#8fb0d4;text-decoration:none;transition:.15s;
+  border-bottom:1px solid transparent}
+#splash .credits .stack a em{font-style:normal;color:#5b7a9c;font-size:10.5px}
+#splash .credits .stack a:hover{color:#5ef2ff;border-bottom-color:rgba(94,242,255,.5);
+  text-shadow:0 0 12px rgba(94,242,255,.5)}
+#splash .credits a{pointer-events:auto}
+@media (max-height:680px){ #splash .credits{position:static;margin-top:22px} }
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 @keyframes widen{from{opacity:0;transform:scaleX(.2)}to{opacity:.65;transform:none}}
 @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
@@ -378,6 +396,23 @@ export class HUD {
       <div class="sub">${SHIPS.length} CRAFT · ENDLESS PROCEDURAL WORLD · THREE WAYS TO FLY</div>
       <div class="cta"><button class="btn" id="enter">Enter Hangar</button></div>
       <div class="hint">PRESS ENTER</div>
+      <div class="credits">
+        <div class="by">Created by
+          <a href="https://www.linkedin.com/in/beardedbestie" target="_blank" rel="noopener">Grant Walker</a>
+        </div>
+        <div class="stack">
+          <span class="lbl">Built with</span>
+          <a href="https://claude.com/claude-code" target="_blank" rel="noopener">Claude Code <em>Opus 5</em></a>
+          <span class="sep">·</span>
+          <a href="https://www.meshy.ai/?utm_source=workshop&amp;utm_medium=referral-program&amp;utm_content=R35HU7&amp;share_type=invite-friends" target="_blank" rel="noopener">Meshy</a>
+          <span class="sep">·</span>
+          <a href="https://suno.com/invite/@beardedbestie" target="_blank" rel="noopener">Suno</a>
+          <span class="sep">·</span>
+          <a href="https://www.midjourney.com/" target="_blank" rel="noopener">Midjourney</a>
+          <span class="sep">·</span>
+          <a href="https://try.elevenlabs.io/gbmvamvgnr30" target="_blank" rel="noopener">ElevenLabs</a>
+        </div>
+      </div>
     `;
     const go = () => { this.splash.classList.add('hidden'); onEnter(); };
     this.splash.querySelector('#enter').onclick = go;

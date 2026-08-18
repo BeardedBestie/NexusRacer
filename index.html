@@ -3,8 +3,39 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-<title>NEXUS RACER</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<title>NEXUS RACER — A Browser Flight Game</title>
+
+<!--
+  SOCIAL SHARE CARDS
+  ------------------
+  og:image works best as an ABSOLUTE url — Twitter/X resolves relative paths but
+  LinkedIn and Facebook are inconsistent about it. Once the prod domain is known,
+  set SITE_URL below to it (no trailing slash) and prefix the two image tags:
+
+      <meta property="og:image" content="https://your-domain.com/social-card.jpg">
+      <meta name="twitter:image" content="https://your-domain.com/social-card.jpg">
+
+  Regenerate the card any time the art changes:  npm run dev  →  /?card=1
+-->
+<meta name="description" content="An endless, procedurally generated low-poly world and three ways to fly it: hunt guarded caches, race an infinite gate track against five rivals, or just drift. 18 craft, built for the browser." />
+<meta name="theme-color" content="#05060f" />
+<link rel="icon" href="/nexusracer_logo.png" />
+<link rel="apple-touch-icon" href="/nexusracer_logo.png" />
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Nexus Racer" />
+<meta property="og:title" content="NEXUS RACER — A Browser Flight Game" />
+<meta property="og:description" content="An endless, procedurally generated low-poly world and three ways to fly it: hunt guarded caches, race an infinite gate track against five rivals, or just drift. 18 craft, built for the browser." />
+<meta property="og:image" content="/social-card.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="A patriotic-liveried starfighter banking over a low-poly island coastline, with the Nexus Racer logo." />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="NEXUS RACER — A Browser Flight Game" />
+<meta name="twitter:description" content="An endless procedural world and three ways to fly it. 18 craft, built for the browser." />
+<meta name="twitter:image" content="/social-card.jpg" />
+<meta name="twitter:image:alt" content="A starfighter banking over a low-poly island coastline, with the Nexus Racer logo." />
 <style>
   :root{
     --cyan:#5ef2ff; --mag:#ff4fd8; --lime:#b6ff3d; --amber:#ffb347;
