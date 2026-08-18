@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>NEXUS RACER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+  :root{
+    --cyan:#5ef2ff; --mag:#ff4fd8; --lime:#b6ff3d; --amber:#ffb347;
+    --bg0:#05060f; --bg1:#0b0f22; --ink:#e8f4ff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg0);color:var(--ink);
+    font-family:"Rajdhani","Chakra Petch",ui-sans-serif,system-ui,"Segoe UI",sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  /* scoped to the WebGL surface — the HUD has its own canvases */
+  #app canvas{display:block;position:fixed;inset:0}
+  #ui{position:fixed;inset:0;pointer-events:none;z-index:10}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="ui"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "nexusracer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node scripts/sound-manifest.mjs && vite",
+    "build": "node scripts/sound-manifest.mjs && vite build",
+    "preview": "vite preview --port 4173",
+    "sounds": "node scripts/sound-manifest.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "vite": "^8.2.1"
+  },
+  "type": "module"
+}
