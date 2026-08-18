@@ -1,7 +1,7 @@
 {
   "name": "nexusracer",
   "version": "1.0.0",
-  "description": "",
+  "description": "An endless procedural low-poly flight game for the browser, built on three.js.",
   "main": "index.js",
   "scripts": {
     "dev": "node scripts/sound-manifest.mjs && vite",
@@ -13,8 +13,8 @@
     "optimize:audio": "node scripts/optimize-assets.mjs audio"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Grant Walker",
+  "license": "CC0-1.0",
   "dependencies": {
     "three": "^0.185.1"
   },

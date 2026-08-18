@@ -37,6 +37,8 @@ Open the printed localhost URL. No build step, no backend, no external requests 
 - [Dev tools](#dev-tools)
 - [Adding assets](#adding-assets)
 - [Bugs worth remembering](#bugs-worth-remembering)
+- [Credits](#credits)
+- [Licence](#licence)
 - [Future improvements](#future-improvements)
 - [Tech](#tech)
 
@@ -98,6 +100,10 @@ different depending on what it is bolted to.
 (drag collapses), Aegis Shell (absorbs 300 damage), Overspin (double fire rate,
 zero heat), Vortex Pull, Bumper Field, and Blink Drive — which on the Party
 Monster reaches five times further than anyone else's.
+
+Several craft share a base mesh and differ only by texture — re-skinned in
+Meshy rather than modelled from scratch. See [Credits](#credits) for which ones.
+Their stats and loadouts differ regardless, so they don't fly alike.
 
 Two of the eighteen are **Training Wheels** craft (TW-H Humpty, TW-D Dumpty):
 kids' toys with a flight licence, running at 62% top speed with heavy damping
@@ -412,4 +418,40 @@ three.js · Vite · vanilla JS, no framework · Web Audio API · `@gltf-transfor
 and `ffmpeg` for the asset pipeline. No runtime network requests — everything is
 local, so it works on venue wifi or none at all.
 
-Ship models generated with [Meshy](https://meshy.ai).
+## Credits
+
+Created by **Grant Walker** — [LinkedIn](https://www.linkedin.com/in/beardedbestie)
+
+Built with:
+
+- [Claude Code](https://claude.com/claude-code) (Opus 5) — code
+- [Meshy](https://www.meshy.ai/?utm_source=workshop&utm_medium=referral-program&utm_content=R35HU7&share_type=invite-friends) — ship models
+- [Suno](https://suno.com/invite/@beardedbestie) — music
+- [Midjourney](https://www.midjourney.com/) — logo and art direction
+- [ElevenLabs](https://try.elevenlabs.io/gbmvamvgnr30) — sound effects
+
+**A note on the fleet:** several of the 18 craft share a base mesh and differ
+only by texture — they were re-skinned in Meshy rather than modelled separately.
+Emerald Serpent and Dark Dragon are the same hull, as are Sugarblade and Nimbus
+Floss, the two Rustwings, the two Skyblades, and the two Training Wheels toys.
+It's a deliberate trick: a re-skin costs a fraction of a fresh generation and
+reads as a distinct ship in flight, which is how the roster got to 18 in a
+single day. The stat lines and loadouts differ, so they play differently even
+where they look related.
+
+## Licence
+
+Released under [CC0 1.0 Universal](LICENSE) — public domain dedication. Do
+whatever you like with it: copy it, modify it, ship it commercially, no
+attribution required. Credit is welcome but not owed.
+
+Two caveats worth knowing, since CC0 can only waive rights the author actually
+holds:
+
+- **Dependencies keep their own licences.** three.js is MIT and its notice must
+  be retained in redistributions.
+- **Generated assets are governed by the terms of the tool that made them.**
+  The models, music, logo and sound effects came out of Meshy, Suno, Midjourney
+  and ElevenLabs, and what you may do with them depends on those services'
+  terms and the plan they were generated under — not on this repository's
+  licence.
