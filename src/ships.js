@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { SHIP_LENGTH } from './scale.js';
 
 // ---------------------------------------------------------------------------
 // Weapon archetypes
@@ -52,15 +53,49 @@ export const WEAPONS = {
 // ---------------------------------------------------------------------------
 export const SHIPS = [
   {
+    id: 'azure-comet',
+    name: 'AZURE COMET',
+    klass: 'Sprinter',
+    file: 'Meshy_AI_Azure_Comet_0818004749_texture.glb',
+    accent: '#4db8ff',
+    blurb: 'Pure kinetic energy with a cockpit bolted on. Regenerates boost faster than anything else flying.',
+    stats: { accel: 9.0, speed: 8.5, handling: 6.0, boost: 9.0, hull: 3.5, mass: 3.2 },
+    primary: 'railLaser', secondary: 'missile', secondaryAmmo: 7,
+    ability: { id: 'cometTail', name: 'Comet Tail', desc: 'Boost stops draining entirely', cd: 16, dur: 5.0 },
+  },
+  {
+    id: 'desert-cruiser',
+    name: 'DESERT CRUISER',
+    klass: 'Liner',
+    file: 'Meshy_AI_Azure_Starcruiser_0818060008_texture.glb',
+    accent: '#4de0ff',
+    blurb: 'Built for long hauls between nowhere and nowhere. Slow to wind up, impossible to stop, and it carries fuel like a grudge.',
+    stats: { accel: 4.5, speed: 8.0, handling: 4.0, boost: 9.5, hull: 9.5, mass: 9.0 },
+    primary: 'railLaser', secondary: 'heavyRocket', secondaryAmmo: 9,
+    magnet: 1.6,
+    ability: { id: 'aegis', name: 'Aegis Shell', desc: 'Absorbs the next 300 damage', cd: 22, dur: 6.0 },
+  },
+  {
     id: 'emerald-serpent',
     name: 'EMERALD SERPENT',
     klass: 'Interceptor',
-    file: 'Meshy_AI_Emerald_Serpent_Starf_0818003629_texture.glb',
+    file: 'Meshy_AI_Emerald_Serpent_Starf_0818055844_texture.glb',
     accent: '#4dffa8',
     blurb: 'Coiled and quick. Bites hard in the corners, punishes anything in a straight line behind it.',
     stats: { accel: 7.5, speed: 7.0, handling: 8.5, boost: 6.5, hull: 5.0, mass: 4.5 },
     primary: 'pulseLaser', secondary: 'missile', secondaryAmmo: 8,
     ability: { id: 'phaseCoil', name: 'Phase Coil', desc: 'Brief i-frames + 40% turn boost', cd: 14, dur: 2.2 },
+  },
+  {
+    id: 'dark-dragon',
+    name: 'DARK DRAGON',
+    klass: 'Stalker',
+    file: 'Meshy_AI_Emerald_Serpent_Starf_0818003629_texture.glb',
+    accent: '#9d5cff',
+    blurb: 'The Serpent\u2019s older, meaner cousin. Same bones, blacked out, and considerably less interested in your survival.',
+    stats: { accel: 7.5, speed: 7.5, handling: 8.0, boost: 6.5, hull: 5.5, mass: 4.8 },
+    primary: 'railLaser', secondary: 'missile', secondaryAmmo: 8,
+    ability: { id: 'phaseCoil', name: 'Phase Coil', desc: 'Brief i-frames + 40% turn boost', cd: 14, dur: 2.4 },
   },
   {
     id: 'sugarblade',
@@ -120,12 +155,12 @@ export const SHIPS = [
     ability: { id: 'aegis', name: 'Aegis Shell', desc: 'Absorbs the next 300 damage', cd: 24, dur: 6.0 },
   },
   {
-    id: 'neon-skyblade',
-    name: 'NEON SKYBLADE',
+    id: 'the-patriot',
+    name: 'THE PATRIOT',
     klass: 'Speedrunner',
     file: 'Meshy_AI_Neon_Skyblade_0818003705_texture.glb',
     accent: '#5ef2ff',
-    blurb: 'Top speed leader. The beam lance melts whatever it can hold still long enough to look at.',
+    blurb: 'Top speed leader, painted like a flypast. The beam lance melts whatever it can hold still long enough to look at.',
     stats: { accel: 7.0, speed: 10.0, handling: 6.5, boost: 7.5, hull: 4.5, mass: 4.0 },
     primary: 'beamLance', secondary: 'missile', secondaryAmmo: 6,
     ability: { id: 'slipstream', name: 'Slipstream', desc: 'Drag collapses, +45% top speed', cd: 17, dur: 3.0 },
@@ -139,29 +174,41 @@ export const SHIPS = [
     blurb: 'Tuned for the launch, not the lap. Rail lasers punch straight through anything lightweight.',
     stats: { accel: 10.0, speed: 8.0, handling: 7.0, boost: 6.0, hull: 4.5, mass: 3.8 },
     primary: 'railLaser', secondary: 'missile', secondaryAmmo: 10,
-    ability: { id: 'blink', name: 'Blink Drive', desc: 'Snap 250m forward, instantly', cd: 12, dur: 0.15 },
+    ability: { id: 'blink', name: 'Blink Drive', desc: 'Snap 2.5km forward, instantly', cd: 12, dur: 0.15, dist: 2500 },
   },
   {
-    id: 'neon-starfighter',
-    name: 'NEON STARFIGHTER',
+    id: 'pastel-starfighter',
+    name: 'PASTEL STARFIGHTER',
     klass: 'All-Rounder',
     file: 'Meshy_AI_Neon_Starfighter_0818003720_texture.glb',
-    accent: '#ff4fd8',
-    blurb: 'No weak stat, no standout one. The ship you pick when you plan to out-fly people, not out-stat them.',
+    accent: '#ffa8e0',
+    blurb: 'No weak stat, no standout one, and a paint job like a sunset. The ship you pick when you plan to out-fly people, not out-stat them.',
     stats: { accel: 7.0, speed: 7.5, handling: 7.0, boost: 7.0, hull: 6.5, mass: 5.5 },
     primary: 'pulseLaser', secondary: 'rocket', secondaryAmmo: 10,
     ability: { id: 'overdrive', name: 'Overdrive', desc: '+30% to everything. No downside. Enjoy.', cd: 20, dur: 3.0 },
   },
   {
-    id: 'azure-comet',
-    name: 'AZURE COMET',
-    klass: 'Sprinter',
-    file: 'Meshy_AI_Azure_Comet_0818004749_texture.glb',
-    accent: '#4db8ff',
-    blurb: 'Pure kinetic energy with a cockpit bolted on. Regenerates boost faster than anything else flying.',
-    stats: { accel: 9.0, speed: 8.5, handling: 6.0, boost: 9.0, hull: 3.5, mass: 3.2 },
-    primary: 'railLaser', secondary: 'missile', secondaryAmmo: 7,
-    ability: { id: 'cometTail', name: 'Comet Tail', desc: 'Boost stops draining entirely', cd: 16, dur: 5.0 },
+    id: 'goldie-grr',
+    name: 'GOLDIE GRR',
+    klass: 'Cruiser',
+    file: 'Meshy_AI_Neon_Manta_Cruiser_0818004714_texture.glb',
+    accent: '#ffc233',
+    blurb: 'Wide, gold and completely unbothered. Glides through gate lines other ships have to fight for.',
+    stats: { accel: 5.0, speed: 7.0, handling: 6.0, boost: 8.5, hull: 8.5, mass: 8.0 },
+    primary: 'beamLance', secondary: 'heavyRocket', secondaryAmmo: 7,
+    magnet: 2.0,
+    ability: { id: 'glide', name: 'Glide Field', desc: 'No drag, no gravity, for four seconds', cd: 19, dur: 4.0 },
+  },
+  {
+    id: 'party-monster',
+    name: 'PARTY MONSTER',
+    klass: 'Assassin',
+    file: 'Meshy_AI_Neon_Starblade_0818004803_texture.glb',
+    accent: '#c66bff',
+    blurb: 'Thin as a rumour and twice as fast to spread. Its blink drive reaches five times further than anyone else\u2019s — it is across the map before the alarm finishes.',
+    stats: { accel: 8.5, speed: 9.0, handling: 8.0, boost: 6.5, hull: 3.5, mass: 3.4 },
+    primary: 'railLaser', secondary: 'missile', secondaryAmmo: 9,
+    ability: { id: 'blink', name: 'Blink Drive ×5', desc: 'Snap 12.5km forward, instantly', cd: 14, dur: 0.15, dist: 12500 },
   },
   {
     id: 'butter-rocket',
@@ -172,34 +219,14 @@ export const SHIPS = [
     blurb: 'Slides through corners like it is greased, because it is. Rocket pods on every hardpoint.',
     stats: { accel: 8.0, speed: 7.0, handling: 5.5, boost: 6.5, hull: 5.5, mass: 5.0 },
     primary: 'scatterGun', secondary: 'rocket', secondaryAmmo: 15,
+    // Measured on the four-yaw sheet (/?grid=1&yaws=butter-rocket): this hull's
+    // length axis is X, canopy forward, so it needs a quarter turn the other way.
+    modelYaw: -Math.PI / 2,
     ability: { id: 'greaseTrail', name: 'Grease Trail', desc: 'Drag halves, turn rate up 20%', cd: 15, dur: 4.0 },
   },
   {
-    id: 'neon-manta',
-    name: 'NEON MANTA',
-    klass: 'Cruiser',
-    file: 'Meshy_AI_Neon_Manta_Cruiser_0818004714_texture.glb',
-    accent: '#7affd6',
-    blurb: 'Wide, calm and impossible to rattle. Glides through gate lines other ships have to fight for.',
-    stats: { accel: 5.0, speed: 7.0, handling: 6.0, boost: 8.5, hull: 8.5, mass: 8.0 },
-    primary: 'beamLance', secondary: 'heavyRocket', secondaryAmmo: 7,
-    magnet: 2.0,
-    ability: { id: 'glide', name: 'Glide Field', desc: 'No drag, no gravity, for four seconds', cd: 19, dur: 4.0 },
-  },
-  {
-    id: 'neon-starblade',
-    name: 'NEON STARBLADE',
-    klass: 'Assassin',
-    file: 'Meshy_AI_Neon_Starblade_0818004803_texture.glb',
-    accent: '#c66bff',
-    blurb: 'Thin as a rumour. Rail lasers plus a blink drive means it is behind you before the alarm finishes.',
-    stats: { accel: 8.5, speed: 9.0, handling: 8.0, boost: 6.5, hull: 3.5, mass: 3.4 },
-    primary: 'railLaser', secondary: 'missile', secondaryAmmo: 9,
-    ability: { id: 'blink', name: 'Blink Drive', desc: 'Snap 250m forward, instantly', cd: 11, dur: 0.15 },
-  },
-  {
-    id: 'rosso-porco',
-    name: 'ROSSO PORCO',
+    id: 'red-pig',
+    name: 'RED PIG',
     klass: 'Veteran',
     file: 'Meshy_AI_Rosso_Porco_Jet_0818004709_texture.glb',
     accent: '#ff5c4d',
@@ -207,7 +234,31 @@ export const SHIPS = [
     stats: { accel: 6.0, speed: 5.5, handling: 9.5, boost: 5.5, hull: 6.5, mass: 5.5 },
     primary: 'machineGun', secondary: 'rocket', secondaryAmmo: 10,
     heatMult: 0.7,
-    ability: { id: 'aceInstinct', name: 'Ace Instinct', desc: 'Turn rate +60%, damage taken −40%', cd: 18, dur: 4.5 },
+    ability: { id: 'aceInstinct', name: 'Ace Instinct', desc: 'Turn rate +60%, damage taken -40%', cd: 18, dur: 4.5 },
+  },
+  {
+    id: 'tw-humpty',
+    name: 'TW-H HUMPTY',
+    klass: 'Training Wheels',
+    file: 'Meshy_AI_Rainbow_Rocket_Racer_0818052725_texture.glb',
+    accent: '#ff5f5f',
+    blurb: 'A toy with a flight licence. Slow, stable and almost impossible to crash — the one you hand somebody who has never flown before.',
+    stats: { accel: 4.0, speed: 2.5, handling: 9.0, boost: 6.0, hull: 9.5, mass: 6.0 },
+    primary: 'pulseLaser', secondary: 'rocket', secondaryAmmo: 12,
+    magnet: 2.4, trainer: true, sizeMult: 0.8,
+    ability: { id: 'bumper', name: 'Bumper Field', desc: 'Shrugs off 80% of everything', cd: 14, dur: 5.0 },
+  },
+  {
+    id: 'tw-dumpty',
+    name: 'TW-D DUMPTY',
+    klass: 'Training Wheels',
+    file: 'Meshy_AI_Rainbow_Rocket_Racer_0818052732_texture.glb',
+    accent: '#7ad4ff',
+    blurb: 'Humpty\u2019s slightly braver sibling. Still forgiving, still slow, but it will actually turn when you ask it to.',
+    stats: { accel: 4.5, speed: 3.0, handling: 9.5, boost: 6.5, hull: 9.0, mass: 5.5 },
+    primary: 'scatterGun', secondary: 'missile', secondaryAmmo: 10,
+    magnet: 2.4, trainer: true, sizeMult: 0.8,
+    ability: { id: 'bumper', name: 'Bumper Field', desc: 'Shrugs off 80% of everything', cd: 14, dur: 5.0 },
   },
 ];
 
@@ -224,21 +275,25 @@ export function pickEnemyShips(excludeId, n, seed = 0) {
 // Map 0..10 designer stats to physical simulation values
 export function resolveStats(ship) {
   const s = ship.stats;
+  // Trainers are deliberately gentle: low top speed, heavy damping, and enough
+  // lift that they simply refuse to fall out of the sky.
+  const trainer = !!ship.trainer;
   return {
-    maxSpeed: 260 + s.speed * 62,            // m/s
+    trainer,
+    maxSpeed: (260 + s.speed * 62) * (trainer ? 0.62 : 1),  // m/s
     thrust: 90 + s.accel * 34,               // m/s^2
     brake: 55 + s.handling * 9,
     pitchRate: 0.85 + s.handling * 0.155,    // rad/s
     yawRate: 0.42 + s.handling * 0.072,
     rollRate: 1.6 + s.handling * 0.30,
-    inertia: 1.0 + (10 - s.handling) * 0.14,
+    inertia: (1.0 + (10 - s.handling) * 0.14) * (trainer ? 0.7 : 1),
     boostMax: 60 + s.boost * 16,
     boostRegen: 5 + s.boost * 2.1,
     boostDrain: 24 - s.boost * 0.85,
     boostThrust: 190 + s.boost * 26,
     hullMax: 60 + s.hull * 26,
     mass: 0.8 + s.mass * 0.13,
-    liftCoef: 0.85 + s.handling * 0.03,
+    liftCoef: (0.85 + s.handling * 0.03) * (trainer ? 1.5 : 1),
     magnet: (ship.magnet ?? 1) * 260,
     scoreMult: ship.scoreMult ?? 1,
     heatMult: ship.heatMult ?? 1,
@@ -269,7 +324,7 @@ export function resetOrientation(wrap) {
 // One-time cleanup of overrides written against the old heuristic.
 try { localStorage.removeItem('nexusracer.orient.v1'); } catch { /* ignore */ }
 
-const TARGET_LEN = 26; // world units, nose-to-tail
+const TARGET_LEN = SHIP_LENGTH; // world units, nose-to-tail
 
 /**
  * Work out which way a model faces, from geometry alone.
@@ -349,7 +404,8 @@ function detectForwardYaw(root, box, size) {
  * longest horizontal axis down -Z (forward).  Returns a fresh Group each call.
  */
 export async function loadShipModel(ship, onProgress) {
-  let base = cache.get(ship.id);
+  const cacheKey = ship.cacheKey ?? ship.id;
+  let base = cache.get(cacheKey);
   if (!base) {
     const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}models/${ship.file}`, onProgress);
     const root = gltf.scene;
@@ -383,14 +439,20 @@ export async function loadShipModel(ship, onProgress) {
     holder.rotation.y = yaw;
 
     const longest = Math.max(size.x, size.z);
-    const scale = TARGET_LEN / Math.max(longest, 0.001);
+    const scale = (TARGET_LEN * (ship.sizeMult ?? 1)) / Math.max(longest, 0.001);
     holder.scale.setScalar(scale);
 
     base = { holder, autoYaw: yaw, size, scale };
-    cache.set(ship.id, base);
+    cache.set(cacheKey, base);
   }
 
   const inst = base.holder.clone(true);
+  // An explicit modelYaw in the roster is authoritative — drop any stale manual
+  // nudge saved against the old auto-detected facing.
+  if (ship.modelYaw !== undefined && orientOverrides[ship.id] !== undefined) {
+    delete orientOverrides[ship.id];
+    saveOrient();
+  }
   const extraYaw = orientOverrides[ship.id] ?? 0;
   inst.rotation.y = base.autoYaw + extraYaw;
   const wrap = new THREE.Group();

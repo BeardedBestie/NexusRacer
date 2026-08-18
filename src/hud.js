@@ -34,7 +34,8 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
 #splash{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:0;z-index:6;
   background:radial-gradient(ellipse at 50% 55%,rgba(10,20,50,.25) 0%,rgba(3,5,14,.86) 70%)}
-#splash .kicker{font-size:12px;letter-spacing:.6em;color:#5ef2ff;opacity:.75;margin-bottom:14px;
+#splash .kicker{font-size:clamp(9px,1.15vw,12px);letter-spacing:.36em;color:#5ef2ff;opacity:.78;
+  margin-bottom:14px;text-align:center;max-width:92vw;line-height:1.7;
   animation:fadeUp .8s ease-out both}
 #splash .logo{width:min(560px,74vw);height:auto;display:block;
   filter:drop-shadow(0 0 42px rgba(94,242,255,.45)) drop-shadow(0 0 14px rgba(120,255,180,.3));
@@ -73,7 +74,9 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
 
 .topbar{display:flex;align-items:center;gap:26px;padding:16px 26px;
   background:linear-gradient(180deg,rgba(4,8,20,.92),rgba(4,8,20,0))}
-.topbar .mark{font-size:22px;font-weight:700;letter-spacing:.16em;
+.topbar .mark{height:clamp(34px,4.2vw,52px);width:auto;display:block;flex:0 0 auto;
+  filter:drop-shadow(0 0 16px rgba(94,242,255,.4))}
+.topbar .mark-text{font-size:22px;font-weight:700;letter-spacing:.16em;
   background:linear-gradient(92deg,#5ef2ff,#b6ff3d 50%,#ff4fd8);
   -webkit-background-clip:text;background-clip:text;color:transparent}
 .tabs{display:flex;gap:8px}
@@ -83,10 +86,19 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
 .tab:hover{border-color:rgba(94,242,255,.6);color:#e8f4ff}
 .tab.sel{border-color:#5ef2ff;color:#0a1a24;background:#5ef2ff;
   box-shadow:0 0 24px rgba(94,242,255,.35)}
+.tab.chill.sel{border-color:#7affd6;background:#7affd6;box-shadow:0 0 24px rgba(122,255,214,.35)}
+.tab.chill:hover{border-color:rgba(122,255,214,.7)}
 .topbar .spacer{flex:1}
 .topbar .mode-note{font-size:11.5px;color:#6d88ab;max-width:330px;line-height:1.45;text-align:right}
 
+/* The middle column is a window onto the hangar canvas, so it must not eat
+   pointer events — only the panels either side and the controls do. These need
+   to out-specify the '#menu > *' rule, hence the #menu prefixes. */
 .stage{display:grid;grid-template-columns:250px 1fr 296px;gap:0;min-height:0}
+#menu .stage{pointer-events:none}
+#menu .rail,#menu .specs{pointer-events:auto}
+#menu .viewport{pointer-events:none}
+#menu .viewport .foot,#menu .viewport .foot *{pointer-events:auto}
 
 .rail{padding:0 12px 12px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
 .rail::-webkit-scrollbar{width:5px}
@@ -107,11 +119,31 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
 .slot .kl{font-size:9.5px;letter-spacing:.16em;color:var(--acc);margin-top:1px}
 
 .viewport{position:relative;display:flex;flex-direction:column;justify-content:space-between;
-  align-items:center;padding:8px 0 14px;min-height:0}
-.viewport .title{text-align:center;pointer-events:none}
-.viewport .title .nm{font-size:clamp(26px,3.4vw,46px);font-weight:700;letter-spacing:.1em;color:#fff;
-  text-shadow:0 0 30px color-mix(in srgb,var(--acc) 70%,transparent)}
-.viewport .title .kl{font-size:11.5px;letter-spacing:.42em;color:var(--acc);margin-top:2px}
+  align-items:center;padding:8px 0 14px;min-height:0;cursor:grab}
+.viewport .title{text-align:center;pointer-events:none;width:100%;max-width:100%;padding:0 12px}
+/* Display face for hull names. Condensed grotesques first (present on most
+   macOS/Windows installs), with a heavy fallback chain — deliberately a
+   different voice from the UI text, not just the body font scaled up. */
+.viewport .title .nm{
+  font-family:"Avenir Next Condensed","HelveticaNeue-CondensedBlack",
+    "Helvetica Neue Condensed","Franklin Gothic Medium Cond","Oswald",
+    "Impact","Haettenschweiler","Arial Narrow",sans-serif;
+  font-weight:800;font-size:clamp(24px,3.6vw,54px);line-height:.94;
+  max-width:100%;overflow-wrap:normal;
+  letter-spacing:.045em;text-transform:uppercase;
+  transform:skewX(-5deg);
+  background:linear-gradient(178deg,#ffffff 4%,#e6f4ff 34%,
+    color-mix(in srgb,var(--acc) 78%,#ffffff) 76%,
+    color-mix(in srgb,var(--acc) 92%,#000000) 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  -webkit-text-stroke:.7px color-mix(in srgb,var(--acc) 55%,transparent);
+  filter:drop-shadow(0 0 26px color-mix(in srgb,var(--acc) 62%,transparent))
+         drop-shadow(0 2px 0 rgba(0,0,0,.45));
+  padding:0 .08em}
+.viewport .title .kl{font-family:"Avenir Next Condensed","Oswald","Arial Narrow",inherit;
+  font-size:12px;font-weight:600;letter-spacing:.5em;color:var(--acc);margin-top:6px;
+  text-transform:uppercase;text-indent:.5em;
+  text-shadow:0 0 14px color-mix(in srgb,var(--acc) 70%,transparent)}
 .viewport .blurb{max-width:480px;margin:8px auto 0;font-size:12.5px;color:#8ea6c6;line-height:1.5;
   font-style:italic;text-align:center}
 .viewport .foot{display:flex;align-items:center;gap:10px}
@@ -119,6 +151,7 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
   color:#9db6d6;cursor:pointer;border-radius:2px;font-size:13px;font-family:inherit;transition:.13s}
 .rotbtn:hover{border-color:#5ef2ff;color:#e8f4ff}
 .rotlbl{font-size:10px;letter-spacing:.2em;color:#5b7a9c}
+.draghint{font-size:9.5px;letter-spacing:.2em;color:#44607f;margin-left:10px}
 .loadchip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   font-size:11px;letter-spacing:.3em;color:#5ef2ff;pointer-events:none}
 .loadchip::after{content:'';display:block;width:120px;height:2px;margin-top:10px;
@@ -199,6 +232,18 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
 #stickwell{position:absolute;left:50%;top:50%;width:2px;height:2px}
 #stickwell svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);overflow:visible}
 #toast{position:absolute;left:50%;top:22%;transform:translateX(-50%);text-align:center;z-index:3}
+#hails{position:absolute;left:50%;bottom:16%;transform:translateX(-50%);width:min(620px,80vw);
+  display:flex;flex-direction:column;align-items:center;gap:8px;z-index:5;pointer-events:none}
+.hail{opacity:0;animation:hailIn 9s ease-out forwards;text-align:center;
+  padding:11px 20px;border-left:2px solid #7affd6;border-radius:2px;
+  background:linear-gradient(90deg,rgba(122,255,214,.09),rgba(6,14,26,.34))}
+.hail .who{font-size:10px;letter-spacing:.3em;color:#7affd6;margin-bottom:4px}
+.hail .what{font-size:15.5px;color:#dff7ee;line-height:1.45;font-style:italic}
+@keyframes hailIn{
+  0%{opacity:0;transform:translateY(14px)}
+  8%{opacity:1;transform:none}
+  78%{opacity:1;transform:none}
+  100%{opacity:0;transform:translateY(-10px)}}
 .tmsg{font-size:26px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
   text-shadow:0 0 22px currentColor;animation:pop .5s ease-out;margin-bottom:4px}
 @keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
@@ -227,8 +272,21 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
 #loading .lt{font-size:12px;letter-spacing:.3em;color:#5ef2ff}
 
 @media (max-width:1080px){
-  .stage{grid-template-columns:180px 1fr 240px}
+  .stage{grid-template-columns:190px 1fr 240px}
   .viewport .blurb{display:none}
+  .topbar .mode-note{display:none}
+}
+/* Narrow screens drop the spec sheet, then the rail, rather than clipping. */
+@media (max-width:860px){
+  .stage{grid-template-columns:180px 1fr}
+  .specs{display:none}
+  .keys{display:none}
+}
+@media (max-width:620px){
+  .stage{grid-template-columns:1fr}
+  .rail{display:none}
+  .dock{gap:12px;padding:10px 14px 14px}
+  .topbar{padding:10px 14px;gap:12px}
 }
 `;
 
@@ -269,6 +327,7 @@ export class HUD {
         </svg>
         <div id="toast"></div>
         <div id="pops"></div>
+        <div id="hails"></div>
       </div>
       <div id="dmg"></div>
       <div id="loading" class="hidden"></div>
@@ -283,6 +342,7 @@ export class HUD {
       right: root.querySelector('#hRight'), goal: root.querySelector('#hGoal'),
       toast: root.querySelector('#toast'), pops: root.querySelector('#pops'),
       dmg: root.querySelector('#dmg'), loading: root.querySelector('#loading'),
+      hails: root.querySelector('#hails'),
       radar: root.querySelector('#hRadar'),
       radarCanvas: root.querySelector('#hRadar canvas'),
       radarRange: root.querySelector('#rrange'),
@@ -309,12 +369,13 @@ export class HUD {
     this.splash.classList.remove('hidden');
     this.menu.classList.add('hidden');
     this.hud.classList.remove('on');
+    this.hud.style.opacity = '';
     this.splash.innerHTML = `
-      <div class="kicker">ANTHROPIC HACK ▸ FLIGHT DIVISION</div>
+      <div class="kicker">OC AI BUILDERS LIGHTNING HACKATHON ▸ MONDAY AUGUST 17, 2026</div>
       <img class="logo" src="${import.meta.env.BASE_URL}nexusracer_logo.png" alt="NEXUS RACER"
            onerror="this.outerHTML='&lt;div class=\'logo-text\'&gt;&lt;span&gt;NEXUS&lt;/span&gt;&lt;span&gt;RACER&lt;/span&gt;&lt;/div&gt;'">
       <div class="rule"></div>
-      <div class="sub">${SHIPS.length} CRAFT · ENDLESS PROCEDURAL WORLD · TWO WAYS TO FLY</div>
+      <div class="sub">${SHIPS.length} CRAFT · ENDLESS PROCEDURAL WORLD · THREE WAYS TO FLY</div>
       <div class="cta"><button class="btn" id="enter">Enter Hangar</button></div>
       <div class="hint">PRESS ENTER</div>
     `;
@@ -332,6 +393,7 @@ export class HUD {
     this.splash.classList.add('hidden');
     this.menu.classList.remove('hidden');
     this.hud.classList.remove('on');
+    this.hud.style.opacity = '';
     this.onLaunch = onLaunch;
     this._renderMenu();
     this.onPreview?.(this.ship());
@@ -341,6 +403,7 @@ export class HUD {
     this.menu.classList.add('hidden');
     this.splash.classList.add('hidden');
     this.hud.classList.add('on');
+    this.hud.style.opacity = this.ambience ?? 1;
   }
 
   ship() { return SHIPS.find((s) => s.id === this.selectedShip); }
@@ -354,6 +417,12 @@ export class HUD {
   }
 
   _renderMenu() {
+    // The whole menu is re-rendered on every change, so hold the ship rail's
+    // scroll position — otherwise picking a hull further down snaps you back
+    // to the top of the list while its model loads.
+    const railScroll = this.menu.querySelector('.rail')?.scrollTop ?? 0;
+    const specScroll = this.menu.querySelector('.specs')?.scrollTop ?? 0;
+
     const ship = this.ship();
     const st = resolveStats(ship);
     const pw = WEAPONS[ship.primary], sw = WEAPONS[ship.secondary];
@@ -361,15 +430,20 @@ export class HUD {
 
     this.menu.innerHTML = `
       <div class="topbar">
-        <div class="mark">NEXUS RACER</div>
+        <img class="mark" src="${import.meta.env.BASE_URL}nexusracer_logo.png" alt="NEXUS RACER"
+             onerror="this.outerHTML='&lt;div class=\'mark-text\'&gt;NEXUS RACER&lt;/div&gt;'">
         <div class="tabs">
-          <div class="tab ${race ? '' : 'sel'}" data-mode="free">Free Range</div>
-          <div class="tab ${race ? 'sel' : ''}" data-mode="race">Endless Circuit</div>
+          <div class="tab ${this.selectedMode === 'free' ? 'sel' : ''}" data-mode="free">Free Range</div>
+          <div class="tab ${this.selectedMode === 'race' ? 'sel' : ''}" data-mode="race">Endless Circuit</div>
+          <div class="tab chill ${this.selectedMode === 'chill' ? 'sel' : ''}" data-mode="chill">Chill Vibes</div>
         </div>
         <div class="spacer"></div>
-        <div class="mode-note">${race
-          ? 'Infinite gate track, five rivals, a clock that only gates can refill. Weapons are legal.'
-          : 'Endless procedural world. Hunt shards and Nexus cores, fight drones, fly wherever you like.'}</div>
+        <div class="mode-note">${
+          this.selectedMode === 'chill'
+            ? 'No hostiles, no objectives, no clock. Other craft drift past on their own business — talk to them or don\'t. The HUD fades away as you settle in.'
+            : race
+              ? 'Infinite gate track, five rivals, a clock that only gates can refill. Weapons are legal.'
+              : 'Endless procedural world. Hunt shards and Nexus cores, fight drones, fly wherever you like.'}</div>
       </div>
 
       <div class="stage">
@@ -394,6 +468,7 @@ export class HUD {
             <div class="rotlbl">MODEL FACING</div>
             <button class="rotbtn" data-rot="1">▶</button>
             <button class="rotbtn" data-rot="0" title="Reset to auto-detected facing">⟲</button>
+            <div class="draghint">DRAG TO TURN</div>
           </div>
         </div>
 
@@ -429,9 +504,10 @@ export class HUD {
       </div>
 
       <div class="dock">
+        ${this.selectedMode === 'chill' ? '' : `
         <div class="opt"><div class="lb">GOAL</div><div class="chips">
           ${GOALS.map((g) => `<div class="chip ${this.goal === g.v ? 'sel' : ''}" data-goal="${g.v}">${g.l}</div>`).join('')}
-        </div></div>
+        </div></div>`}
         <div class="opt"><div class="lb">ASSIST</div><div class="chips">
           <div class="chip ${this.assist === 'assisted' ? 'sel' : ''}" data-assist="assisted">Assisted</div>
           <div class="chip ${this.assist === 'standard' ? 'sel' : ''}" data-assist="standard">Standard</div>
@@ -474,6 +550,11 @@ export class HUD {
       this._renderMenu();
       this.onPreview?.(this.ship());
     });
+    const rail = this.menu.querySelector('.rail');
+    if (rail) rail.scrollTop = railScroll;
+    const specs = this.menu.querySelector('.specs');
+    if (specs) specs.scrollTop = specScroll;
+
     this.menu.querySelector('#launch').onclick = () => this.onLaunch?.({
       ship: this.selectedShip, mode: this.selectedMode, assist: this.assist, goal: this.goal,
     });
@@ -537,12 +618,18 @@ export class HUD {
     const cx = W / 2, cy = H / 2, R = W / 2 - 4;
     ctx.clearRect(0, 0, W, H);
 
-    // dish
+    // Chrome (dish, rings, sweep, rim) can fade out independently of the
+    // contacts, so Chill Vibes can strip the instrument and keep the dots.
+    const chrome = this.chromeAlpha ?? 1;
+    const contact = this.keepScanner ? Math.max(0.55, chrome) : 1;
+
     ctx.save();
+    ctx.globalAlpha = chrome;
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(6,16,34,.72)'; ctx.fill();
+    ctx.fillStyle = `rgba(6,16,34,${0.72 * chrome})`; ctx.fill();
     ctx.clip();
 
+    ctx.globalAlpha = chrome;
     ctx.strokeStyle = 'rgba(94,242,255,.16)'; ctx.lineWidth = 1;
     for (let i = 1; i <= 3; i++) {
       ctx.beginPath(); ctx.arc(cx, cy, (R * i) / 3, 0, Math.PI * 2); ctx.stroke();
@@ -559,7 +646,7 @@ export class HUD {
       ? ctx.createConicGradient(a0, cx, cy)
       : null;
     if (grad) {
-      grad.addColorStop(0, 'rgba(94,242,255,.22)');
+      grad.addColorStop(0, `rgba(94,242,255,${0.22 * chrome})`);
       grad.addColorStop(0.12, 'rgba(94,242,255,0)');
       grad.addColorStop(1, 'rgba(94,242,255,0)');
       ctx.fillStyle = grad;
@@ -567,6 +654,7 @@ export class HUD {
     }
 
     // blips, rotated into ship-relative space
+    ctx.globalAlpha = 1;
     const c = Math.cos(-heading), s = Math.sin(-heading);
     for (const b of blips) {
       const dx = b.x - px, dz = b.z - pz;
@@ -574,34 +662,69 @@ export class HUD {
       const rz = dx * s + dz * c;
       const d = Math.hypot(rx, rz);
       const clamped = Math.min(d, range);
-      const k = (clamped / range) * R;
+      const k = clamped / range;                       // 0 at the ship, 1 at the rim
+      const kr = k * R;
       const ang = Math.atan2(rx, -rz);
-      const bx = cx + Math.sin(ang) * k;
-      const by = cy - Math.cos(ang) * k;
-      const edge = d > range;
-      const size = edge ? 2 : (b.size ?? 3);
-      ctx.globalAlpha = edge ? 0.4 : 1;
+      const bx = cx + Math.sin(ang) * kr;
+      const by = cy - Math.cos(ang) * kr;
+
+      // Distance read-off: a blip starts as a solid dot and hollows out into a
+      // ring as it approaches the rim, so nothing ever vanishes off the edge.
+      const e = Math.max(0, Math.min(1, (k - 0.35) / 0.65));
+      const edge = e * e * (3 - 2 * e);                // smoothstep
+      const fade = (1 - 0.55 * edge) * contact;
+      const size = b.size ?? 3;
+
+      ctx.strokeStyle = b.color;
       ctx.fillStyle = b.color;
-      if (b.kind === 'gate') {
-        ctx.globalAlpha = edge ? 0.4 : 0.9;
-        ctx.strokeStyle = b.color; ctx.lineWidth = 1.6;
-        ctx.beginPath(); ctx.arc(bx, by, size + 1.5, 0, Math.PI * 2); ctx.stroke();
-      } else {
-        ctx.shadowColor = b.color; ctx.shadowBlur = edge ? 0 : 7;
-        ctx.beginPath(); ctx.arc(bx, by, size, 0, Math.PI * 2); ctx.fill();
+
+      if (b.kind === 'gate' || b.kind === 'site') {
+        ctx.globalAlpha = fade * 0.9;
+        ctx.lineWidth = b.kind === 'site' ? 2 : 1.6;
+        ctx.beginPath();
+        ctx.arc(bx, by, size + 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+        if (b.kind === 'site' && edge < 0.9) {
+          ctx.globalAlpha = fade * (1 - edge) * 0.6;
+          ctx.beginPath();
+          ctx.arc(bx, by, size * 0.42, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        continue;
+      }
+
+      // solid core, fading out toward the rim
+      if (edge < 1) {
+        ctx.globalAlpha = fade * (1 - edge);
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 7 * (1 - edge);
+        ctx.beginPath();
+        ctx.arc(bx, by, size, 0, Math.PI * 2);
+        ctx.fill();
         ctx.shadowBlur = 0;
+      }
+      // outline, fading in as the core fades out
+      if (edge > 0) {
+        ctx.globalAlpha = fade * Math.max(edge, 0.25);
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(bx, by, size * (1 + 0.15 * edge), 0, Math.PI * 2);
+        ctx.stroke();
       }
     }
     ctx.globalAlpha = 1;
     ctx.restore();
 
     // rim + own ship
+    ctx.globalAlpha = chrome;
     ctx.strokeStyle = 'rgba(94,242,255,.5)'; ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = contact;
     ctx.fillStyle = '#b6ff3d';
     ctx.beginPath();
     ctx.moveTo(cx, cy - 6); ctx.lineTo(cx - 4.2, cy + 5); ctx.lineTo(cx + 4.2, cy + 5);
     ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
 
     this.el.radarRange.textContent = (range / 1000).toFixed(1);
     if (legend && this._legendKey !== legend.key) {
@@ -651,6 +774,19 @@ export class HUD {
 
       const r = s.r;
       const col = s.locked ? '#ff4d3d' : s.color;
+
+      // Chill Vibes: no brackets, no lock, no threat read — just how far away
+      // the other pilot is, in a calm blue.
+      if (s.quiet) {
+        // ghosts out alongside the scanner dots, never all the way to nothing
+        ctx.globalAlpha = 0.75 * Math.max(0.4, this.chromeAlpha ?? 1);
+        ctx.fillStyle = col;
+        ctx.font = '11px ui-monospace, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${(s.dist / 1000).toFixed(1)}km`, s.x, s.y + r + 16);
+        ctx.globalAlpha = 1;
+        continue;
+      }
       ctx.globalAlpha = s.locked ? 1 : 0.62;
       ctx.strokeStyle = col;
       ctx.lineWidth = s.locked ? 2 : 1.4;
@@ -706,11 +842,51 @@ export class HUD {
     ctx.globalAlpha = 1;
   }
 
+  /**
+   * Global HUD presence, 1 to 0. Chill Vibes eases this toward a 5% ghost over
+   * five minutes so the instruments get out of the way of the view.
+   */
+  setAmbience(a, keepScanner = false) {
+    this.ambience = a;
+    this.keepScanner = keepScanner;
+    if (!this.hud.classList.contains('on')) { this.hud.style.opacity = ''; return; }
+
+    if (!keepScanner) {
+      this.hud.style.opacity = a;
+      this.chromeAlpha = 1;
+      return;
+    }
+
+    // Chill Vibes: the instruments dissolve completely, but the scanner's dots
+    // stay — all you are left with is where you are relative to everyone else.
+    this.hud.style.opacity = 1;
+    this.chromeAlpha = a;
+    for (const el of [this.el.left, this.el.right, this.el.score, this.el.top,
+                      this.el.board, this.el.goal, this.el.cross]) {
+      if (el) el.style.opacity = a;
+    }
+    const r = this.el.radar;
+    r.style.background = `rgba(6,10,24,${(0.42 * a).toFixed(3)})`;
+    r.style.borderColor = `rgba(94,242,255,${(0.18 * a).toFixed(3)})`;
+    r.style.backdropFilter = a > 0.2 ? 'blur(3px)' : 'none';
+    for (const el of r.querySelectorAll('.lbl, .rlegend')) el.style.opacity = a;
+  }
+
   /** Move the reticle with the virtual stick so its deflection is visible. */
   setStick(x, y) {
     const reach = Math.min(innerWidth, innerHeight) * 0.19;
     this.el.cross.style.transform =
       `translate(calc(-50% + ${(x * reach).toFixed(1)}px), calc(-50% + ${(y * reach).toFixed(1)}px))`;
+  }
+
+  /** A passing pilot says hello. Stays legible even once the HUD has faded. */
+  hail(who, what) {
+    const n = document.createElement('div');
+    n.className = 'hail';
+    n.innerHTML = `<div class="who">${who}</div><div class="what">${what}</div>`;
+    this.el.hails.appendChild(n);
+    while (this.el.hails.children.length > 3) this.el.hails.firstChild.remove();
+    setTimeout(() => n.remove(), 9200);
   }
 
   toast(msg, color = '#5ef2ff', ttl = 1400) {

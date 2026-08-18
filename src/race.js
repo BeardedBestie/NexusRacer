@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { fbm2 } from './noise.js';
+import { GATE_RADIUS as GR, RACER_SCALE as RS } from './scale.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
 const _q = new THREE.Quaternion();
@@ -7,8 +8,8 @@ const FWD = new THREE.Vector3(0, 0, -1);
 
 const NODE_SPACING = 300;
 const GATE_EVERY = 3;          // nodes between gates
-const GATE_RADIUS = 88;
-const RACER_SCALE = 1.9;
+const GATE_RADIUS = GR;
+const RACER_SCALE = RS;
 
 /**
  * Endless procedural track: a heading-integrated spline that meanders over the
@@ -109,7 +110,7 @@ export class GateField {
     scene.add(this.group);
     this.window = 16;
     this.rings = [];
-    const geo = new THREE.TorusGeometry(GATE_RADIUS, 5.5, 6, 24);
+    const geo = new THREE.TorusGeometry(GATE_RADIUS, 22, 6, 24);
     for (let i = 0; i < this.window; i++) {
       const mat = new THREE.MeshBasicMaterial({
         color: 0x5ef2ff, transparent: true, opacity: 0.85,
@@ -161,7 +162,7 @@ export class GateField {
 function fallbackRacer(color) {
   const g = new THREE.Group();
   const hull = new THREE.Mesh(
-    new THREE.ConeGeometry(5.5, 22, 5),
+    new THREE.ConeGeometry(55, 220, 5),
     new THREE.MeshLambertMaterial({ color: 0x323a55, flatShading: true }),
   );
   hull.rotation.x = -Math.PI / 2;
@@ -175,9 +176,9 @@ function dressRacer(root, color) {
     color, toneMapped: false, transparent: true, opacity: 0.95,
     blending: THREE.AdditiveBlending, depthWrite: false,
   });
-  const trail = new THREE.Mesh(new THREE.ConeGeometry(2.6, 15, 8), glowMat);
+  const trail = new THREE.Mesh(new THREE.ConeGeometry(26, 150, 8), glowMat);
   trail.rotation.x = Math.PI / 2;
-  trail.position.z = 13;
+  trail.position.z = 130;
   root.add(trail);
   root.userData.trail = trail;
   return root;
@@ -198,8 +199,8 @@ export class AIRacer {
     this._prev = new THREE.Vector3();
     this.hp = 120; this.maxHp = 120; this.alive = true; this.isEnemy = true;
     this.f = opts.startF ?? 0;               // node-index progress
-    this.lateral = (Math.random() - 0.5) * 90;
-    this.vertical = (Math.random() - 0.5) * 60;
+    this.lateral = (Math.random() - 0.5) * 330;
+    this.vertical = (Math.random() - 0.5) * 150;
     this.speed = 0;
     this.baseSpeed = 300 + opts.skill * 240;
     this.stun = 0;
@@ -231,7 +232,7 @@ export class AIRacer {
     // offset from the centreline so the pack fans out
     _v3.copy(_v2).cross(new THREE.Vector3(0, 1, 0)).normalize();
     const wob = Math.sin(this.f * 0.35 + this.lateral) * 26;
-    _v.addScaledVector(_v3, this.lateral + wob);
+    _v.addScaledVector(_v3, (this.lateral + wob) * 2.2);
     _v.y += this.vertical;
 
     this._prev.copy(this.mesh.position);

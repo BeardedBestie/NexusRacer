@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SEA_LEVEL } from './terrain.js';
+import { GROUND_CLEAR } from './scale.js';
 
 const _q = new THREE.Quaternion();
 const _v = new THREE.Vector3();
@@ -143,7 +144,7 @@ export class FlightModel {
 
     // --- terrain / sea interaction ---------------------------------------
     this.groundH = hf ? hf.height(this.position.x, this.position.z) : -9999;
-    const floor = Math.max(this.groundH, SEA_LEVEL - 6) + 9;
+    const floor = Math.max(this.groundH, SEA_LEVEL - 6) + GROUND_CLEAR;
     this.agl = this.position.y - floor;
     this.crashed = false;
     if (this.position.y < floor) {

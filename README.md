@@ -1,42 +1,70 @@
-# NEXUS RACER
+<div align="center">
+  <img src="public/nexusracer_logo.png" alt="NEXUS RACER" width="420">
+  <p><strong>A browser flight game built on three.js.</strong><br>
+  An endless, seed-deterministic low-poly world and three very different ways to fly it.</p>
+  <p><em>Built for the OC AI Builders Lightning Hackathon — Monday, August 17, 2026</em></p>
+</div>
 
-A browser flight game built on three.js — an endless, seed-deterministic low-poly
-world with two ways to fly it.
+---
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open the printed localhost URL.
+Open the printed localhost URL. No build step, no backend, no external requests at runtime.
 
-## Modes
+---
 
-| Mode | Loop |
+## Table of contents
+
+- [What it is](#what-it-is)
+- [Controls](#controls)
+- [The fleet](#the-fleet)
+- [How it works](#how-it-works)
+  - [Module map](#module-map)
+  - [The procedural world](#the-procedural-world)
+  - [Flight model](#flight-model)
+  - [The virtual stick](#the-virtual-stick)
+  - [Combat and lock-on](#combat-and-lock-on)
+  - [Garrisons, not roamers](#garrisons-not-roamers)
+  - [Chill Vibes](#chill-vibes)
+  - [World scale and optics](#world-scale-and-optics)
+  - [Model orientation](#model-orientation)
+  - [Audio](#audio)
+  - [Performance](#performance)
+- [Asset pipeline](#asset-pipeline)
+- [Dev tools](#dev-tools)
+- [Adding assets](#adding-assets)
+- [Bugs worth remembering](#bugs-worth-remembering)
+- [Future improvements](#future-improvements)
+- [Tech](#tech)
+
+---
+
+## What it is
+
+Three modes share one world, one flight model and one fleet. They differ in what
+the world is *for*.
+
+| Mode | The loop |
 |---|---|
-| **Free Range** | Endless procedural world. Hunt landmark-scale shards and Nexus cores, fight patrol drones, fly anywhere. |
-| **Endless Circuit** | An infinite gate track against five AI rivals. Gates buy you time; the clock is the only thing that ends the run. |
+| **Free Range** | Endless procedural world. Loot comes in rare **sites** — clusters you fly out and find — and the richest ones are **garrisoned**. Long quiet stretches punctuated by fights you choose to pick. |
+| **Endless Circuit** | An infinite procedurally-generated gate track against five AI rivals. Gates buy you time; the clock is the only thing that ends the run. Weapons are legal. |
+| **Chill Vibes** | No hostiles, no objectives, no clock, and nothing can end the run. Solitary pilots drift past on a shared heading and say hello. The HUD dissolves over a minute until only your marker and theirs remain. |
 
-Both modes accept an optional **goal** (10 / 25 / 50 pickups or gates) or run
-endlessly. Mouse sensitivity, assist level and audio are set in the hangar dock.
+Free Range and Endless Circuit accept an optional goal (10 / 25 / 50 pickups or
+gates) or run forever. Assist level, mouse sensitivity and audio are set in the
+hangar dock.
 
-## Combat
-
-Hostiles fly real hulls from the same model library (never your own) and always
-enter from in front — once overshot they disengage and come back around rather
-than trailing uselessly on your six.
-
-A sticky lock-on picks whatever sits closest to the nose inside a ~26° cone and
-holds it until something is clearly better centred, or until you cycle it with
-`T`. Guns and lasers auto-lead the locked target's intercept point; missiles
-seek it. On-screen brackets show range, hull, and an edge arrow when the locked
-target slips behind you.
+The world is generated from a fixed seed, so the same mountain range is in the
+same place every session.
 
 ## Controls
 
 | | |
 |---|---|
-| Mouse | Virtual stick — holds its deflection, so you can carry a bank through a full 180. Click the canvas to capture. |
+| Mouse | **Virtual stick** — holds its deflection, so you can carry a bank through a full 180. Click the canvas to capture. |
 | `X` | Recentre the stick |
 | `W` / `S` | Throttle |
 | `A` / `D` | Roll · `Q` / `E` rudder |
@@ -45,53 +73,343 @@ target slips behind you.
 | `RMB` / `F` | Secondary weapon (missiles seek the lock) |
 | `T` | Cycle lock target |
 | `R` | Signature ability |
-| `C` | Camera (chase / far / cockpit) |
+| `C` | Camera — chase / far / cockpit |
 | `M` | Mute · `Esc` pause |
 
-## Fleet
+In the hangar: **click and drag the ship** to turn it over. Flick it and it keeps
+the momentum; the turntable creeps back once you leave it alone.
 
-14 craft, each with its own accel / top speed / handling / boost / hull / mass
-profile, a primary and secondary weapon, and a signature ability. Weapons cover
-pulse and rail lasers, a beam lance, vulcan machine guns, scatter blasters,
-seeker missiles, rocket pods and siege rockets — with heat, ammo and cooldown
-budgets that differ per hull.
+## The fleet
 
-## Adding assets
+18 craft, each with its own accel / top speed / handling / boost / hull / mass
+profile, a primary and secondary weapon, and a signature ability.
 
-**Models** — drop a `.glb` in `public/models/`, then add an entry to `SHIPS` in
-[src/ships.js](src/ships.js). Orientation is detected from geometry (mirror
-symmetry finds the length axis, taper finds the nose); override with `modelYaw`
-on the ship, or nudge it live with the hangar's *Model Facing* arrows. Manual
-nudges persist in localStorage — the **⟲** button clears one and restores the
-auto-detected facing.
+Designer-facing stats are 0–10 and resolve to physical simulation values in
+`resolveStats()` — so tuning a ship means editing six numbers, not hunting
+through the physics.
 
-Every ship noses down **-Z**. Use `quaternion.setFromUnitVectors(FWD, dir)` to
-aim one, never `Object3D.lookAt` — that aims **+Z** and will fly the hull
-tail-first.
+**Weapon archetypes** — pulse laser, rail laser, beam lance, vulcan machine gun,
+scatter blaster, seeker missile, rocket pod, siege rocket. Each carries its own
+damage, rate of fire, spread, heat cost, projectile speed and splash profile.
+Heat, ammo and cooldown budgets differ per hull, so the same weapon feels
+different depending on what it is bolted to.
 
-Check every hull at once with the contact sheet: `/?grid=1` — a correctly
-oriented ship points **left**.
+**Signature abilities** include Phase Coil (i-frames + turn boost), Slipstream
+(drag collapses), Aegis Shell (absorbs 300 damage), Overspin (double fire rate,
+zero heat), Vortex Pull, Bumper Field, and Blink Drive — which on the Party
+Monster reaches five times further than anyone else's.
 
-**Sounds** — drop clips in `public/sound/` and run `npm run sounds` (also run
-automatically by `npm run dev`). Files are classified by keyword in the filename
-(`music`, `boost`, `whoosh`/`gate`, `laser`/`shot`, `missile`, `explosion`,
-`pickup`/`ring`, `hurt`, `ui`); anything unrecognised is spread across the
-events that most need a clip. The script also renames files containing
-URL-hostile characters like `#`. All audio is sample-based — there is no
-synthesised fallback.
+Two of the eighteen are **Training Wheels** craft (TW-H Humpty, TW-D Dumpty):
+kids' toys with a flight licence, running at 62% top speed with heavy damping
+and extra lift, for handing to someone who has never flown before.
 
-## Layout
+## How it works
+
+### Module map
 
 | File | Role |
 |---|---|
-| `src/main.js` | Bootstrap, state machine, game loop, mode logic |
+| `src/main.js` | Bootstrap, state machine, game loop, per-mode logic |
+| `src/scale.js` | **All world scale in one place** — hull size, camera, optics, ordnance |
 | `src/terrain.js` | Height field, biome colouring, chunked LOD streaming |
-| `src/flight.js` | Fixed-timestep flight model (lift, drag, bank-to-turn, stall) |
-| `src/ships.js` | Fleet roster, weapon archetypes, GLB load + auto-orient |
+| `src/flight.js` | Fixed-timestep flight model |
+| `src/ships.js` | Fleet roster, weapon archetypes, GLB loading and auto-orientation |
 | `src/weapons.js` | Projectiles, missiles, beams, explosions, loadout state |
-| `src/world.js` | Deterministic collectible field, drone swarm |
+| `src/world.js` | Deterministic collectible sites, garrison AI |
 | `src/race.js` | Endless track spline, gates, AI racers |
+| `src/drifters.js` | Chill Vibes ambient traffic |
+| `src/greetings.js` | 50 pilot hail lines and 20 callsigns |
 | `src/environment.js` | Sky, sun, fog, water, clouds, sky-derived IBL |
-| `src/hangar.js` | Menu backdrop with the rotating ship preview |
-| `src/hud.js` | Splash, ship select, HUD, scanner, results |
-| `src/audio.js` · `src/soundbank.js` | Sample playback and classification |
+| `src/hangar.js` | Menu backdrop — the hangar bay diorama and ship preview |
+| `src/hud.js` | Splash, ship select, HUD, scanner, reticles, results |
+| `src/audio.js` · `src/soundbank.js` | Sample playback, classification, music rotation |
+| `src/devgrid.js` | Dev-only model contact sheets |
+
+### The procedural world
+
+Terrain is a deterministic height field composed as `h = B + R + D − C`:
+
+- **B** — continental mass from very low-frequency fBm, with domain warping so
+  coastlines aren't obviously noise-shaped
+- **R** — mountain ranges from *ridged* noise, gated by continental mass so
+  ranges only form inland and read as ridges rather than isolated spikes
+- **D** — high-frequency detail, kept subtle to preserve the low-poly silhouette
+- **C** — river and basin carving
+
+Noise is hash-based value noise with rotated-domain fBm (each octave rotates the
+sample space ~0.7 rad) to break up the axis-aligned artefacts you otherwise get.
+
+Chunks stream in a radius around the player at four LODs, budgeted to a couple of
+builds per frame so generation never hitches. Geometry is non-indexed and
+flat-shaded with per-face vertex colours; the diagonal of each quad alternates so
+the faceting doesn't read as a regular grid. Downward **skirts** around each
+chunk hide LOD seams without needing geomorphing.
+
+Biome colour is a pure function of height, slope, moisture, temperature and a
+stable low-frequency jitter — exposed rock appears on steep faces, snow only
+sticks to shallow ones.
+
+The sky is a gradient shader on a dome (no textures), and its material is run
+through `PMREMGenerator` to produce the environment map — so the water and the
+metal hulls reflect whatever time-of-day preset is running, and everything sits
+in the same light.
+
+### Flight model
+
+Fixed 120 Hz timestep with bounded catch-up, decoupled from render rate.
+
+Forces: gravity, engine thrust, quadratic drag, speed-dependent lift along body-up,
+and slip damping that eases velocity toward the nose. Angular motion runs through
+inertia and damping, with **bank-to-turn** — rolled attitude induces yaw
+proportional to bank angle, which is what makes it feel like flying rather than
+steering a cursor. Low airspeed collapses control authority into a soft stall.
+
+Two assist levels: Assisted adds auto-level and gentler response; Standard keeps
+full momentum.
+
+### The virtual stick
+
+This one went through three iterations and is worth explaining.
+
+**v1** treated mouse movement as a roll *impulse*. The bug: mouse deltas are zero
+the instant you stop moving, so auto-level immediately cancelled the bank and a
+sustained turn — let alone a 180 — was impossible.
+
+**v2** made the mouse drive a persistent virtual stick that holds its deflection.
+That fixed turning and broke everything else: it was far too twitchy and
+over-corrected constantly.
+
+**v3** is what shipped. The stick still holds its deflection, but:
+
+- sensitivity needs ~660 px of travel for full throw
+- a 7% dead zone, then an **expo curve** (`t^1.85`) so fine movements near centre
+  do almost nothing and full authority only arrives at the edges
+- self-centring at 0.3/s — slow enough to carry a bank through a full turn, fast
+  enough that an unattended ship levels out
+- **the crosshair moves with the stick**, so deflection is visible and correctable.
+  This was the actual missing piece: the control wasn't just mistuned, it was
+  invisible.
+- Low / Normal / High sensitivity in the hangar, persisted
+
+### Combat and lock-on
+
+A sticky lock picks whatever hostile sits closest to the nose inside a ~26° cone
+and holds it until something is clearly better centred (by 0.05 dot) or you cycle
+with `T`. Guns, lasers *and* the beam auto-lead the target's intercept point via
+a two-iteration fixed-point solve, blended by lock confidence. Missiles seek it.
+
+The targeting overlay is a single 2D canvas: corner brackets, range, hull pip,
+rival name, a closing-then-steady lock ring, and an edge arrow when the locked
+target slips behind you. It renders *under* the HUD panels so it never fights
+them for space.
+
+### Garrisons, not roamers
+
+The first version had hostiles hunting the player globally, which produced two
+problems: at 500 m/s you blow past them and they can never catch up, and the sky
+was never quiet.
+
+The shipped design ties hostiles to **loot**. Guarded sites hold a garrison that
+patrols a slow orbit, wakes only when you come within 4.2 km, and is leashed to
+5.2 km so it can never be dragged off its post. Downed guards only return if the
+site still has loot worth guarding. The result is the rhythm the game wanted:
+long stretches of flying, then a fight you flew toward on purpose.
+
+### Chill Vibes
+
+Everything hostile is switched off, and a terrain scrape bounces you back up
+instead of wrecking you — nothing ends the run.
+
+Ambient traffic shares one **slowly wandering heading** so the sky reads as a
+loose migration rather than random noise, while each craft carries its own lane
+offset, altitude band, speed and weave so it never looks like a formation. They
+are scattered wide and deep, so encounters are solitary.
+
+Come within 2.2 km and you get a hail — one of 50 lines, from a named pilot.
+There is no lock and no threat read, just a calm blue range figure.
+
+The HUD then does something slightly unusual: over 60 seconds it dissolves
+*selectively*. The scanner is drawn as two independently-alpha'd layers, so the
+dish, rings, sweep, rim and every panel fade to nothing while the **contacts and
+your own marker hold**. What's left is your position relative to everyone else,
+and nothing else.
+
+### World scale and optics
+
+Every scale constant lives in [`src/scale.js`](src/scale.js). Hulls are
+deliberately oversized — capital ship, not fighter jet — because the models are
+the best-looking thing in the game and hiding them at realistic scale was a bad
+trade.
+
+The important part is that the camera pulls back **less than linearly** with hull
+size (roughly 6× against a 10× hull) and the field of view is tighter than a sim
+would use. A bigger ship therefore genuinely fills more of the frame instead of
+just sitting further away. The hangar preview is its own diorama with its own
+display scale, independent of in-flight size.
+
+### Model orientation
+
+Meshy exports don't agree on which way is forward, and a ship flying backwards or
+sideways ruins the whole thing. Rather than eyeballing 18 models, orientation is
+**derived from geometry** in `detectForwardYaw()`:
+
+1. Voxelise the hull into a coarse occupancy grid.
+2. Aircraft are mirror-symmetric across the plane containing their length axis,
+   so reflecting along the *lateral* axis maps the hull onto itself. Whichever
+   horizontal axis reflects with less error is lateral; the other is length.
+3. Hulls taper toward the nose, so of the two ends of the length axis, the one
+   with less occupied volume is the front.
+
+This gets 17 of 18 right. For the holdout there's `modelYaw` in the roster, plus
+a four-yaw comparison tool (below) so the answer is measured rather than guessed.
+
+**Convention:** every ship noses down **−Z**. Use
+`quaternion.setFromUnitVectors(FWD, dir)` to aim one — never `Object3D.lookAt`,
+which aims **+Z** and will fly the hull tail-first.
+
+### Audio
+
+All audio is sample-based; there is no synthesised fallback. Clips are classified
+by filename keyword, so dropping files in and re-running `npm run sounds` wires
+them up.
+
+Two details worth noting:
+
+- **Music rotates.** Each track plays to the end, then the next in a reshuffled
+  order takes over, and a restart never opens on the track it just played.
+  Chill Vibes has its own pool.
+- **Rapid fire is gated.** A vulcan asks for a sample every 55 ms, which phases
+  into mud and stacks gain until it clips. Guns fire one clip per 110 ms with
+  ±22% pitch spread, capped at three concurrent voices, and each extra voice is
+  gain-trimmed. It reads as a burst instead of a wall.
+
+### Performance
+
+Nothing is allocated during play. Combat pools are built up front (110 bolts, 28
+missiles, 90 flares, 4 beams) and `renderer.compile()` runs before anything is on
+screen. Hostiles are a **fixed pool** — death hides the mesh and starts a respawn
+timer; it never destroys and re-clones a GLB.
+
+Measured across five kills: median frame 16.6 ms, max 22.8 ms, **zero frames over
+33 ms** — identical to idle.
+
+The render loop also draws the world *before* the HUD and wraps the HUD in a
+try/catch, so a broken gauge can't blank the game.
+
+## Asset pipeline
+
+```bash
+npm run optimize          # models + audio, idempotent
+```
+
+`public/` ships at ~19 MB, down from ~146 MB:
+
+| | before | after | |
+|---|---|---|---|
+| Models (18 GLB) | 128.3 MB | **8.1 MB** | −93.7% |
+| Audio (16 MP3) | 17.3 MB | **10.9 MB** | −37.0% |
+
+Inspection came before optimisation, and it changed the approach: the hulls are
+~97% texture by weight — three 2048×2048 JPEGs against a ~230 KB mesh. Draco
+compresses *geometry*, so it would have bought almost nothing here while forcing
+a decoder into the runtime. Resizing textures to 1024 and re-encoding as WebP
+does effectively all the work.
+
+The script deliberately does **not** run `simplify` or `quantize`. They saved a
+further ~76 KB per model in exchange for altering geometry whose orientation and
+silhouette had already been verified — not a trade worth making before a demo.
+Net result: zero geometry bytes changed, and no loader changes either, since WebP
+in glTF rides on `EXT_texture_webp` which three's `GLTFLoader` reads natively.
+
+Originals are copied to `assets_src/` (gitignored, not served) before anything is
+overwritten, so the step is reversible and safe to re-run.
+
+## Dev tools
+
+| URL | What it does |
+|---|---|
+| `/?grid=1` | Contact sheet of every hull. A correctly oriented ship points **left**. |
+| `/?grid=1&from=9&count=9&cols=3` | Paged contact sheet |
+| `/?grid=1&yaws=butter-rocket` | Renders one hull at all four cardinal yaws so the correct one can be read off directly, then pinned via `modelYaw` |
+
+`window.__game`, `window.__three` and `window.__audio` are exposed for console
+tuning.
+
+## Adding assets
+
+**Models** — drop a `.glb` in `public/models/`, add an entry to `SHIPS` in
+[`src/ships.js`](src/ships.js), then run `npm run optimize`. Orientation is
+auto-detected; override with `modelYaw`, or nudge it live with the hangar's
+*Model Facing* arrows (**⟲** resets to auto). An explicit `modelYaw` wins over a
+stale manual nudge. `sizeMult` scales one hull against the fleet.
+
+**Sounds** — drop clips in `public/sound/` and run `npm run sounds` (also run by
+`npm run dev`). Classified by keyword: `bgmusic4`/`bgmusic5`/`lofi`/`chill` →
+Chill Vibes pool, `bgmusic*`/`music` → main theme pool, then `boost`,
+`whoosh`/`gate`, `laser`/`shot`, `missile`, `explosion`, `pickup`/`ring`,
+`hurt`, `ui`. Anything unrecognised is spread across the events that most need a
+clip. The script also renames files containing URL-hostile characters like `#` —
+Vite silently serves `index.html` instead of those.
+
+## Bugs worth remembering
+
+A few of these cost real time and have non-obvious causes.
+
+- **Missiles flew backwards.** Not a guidance bug. `m.vel.copy(_v2).multiplyScalar(m.vel.length())`
+  overwrites `m.vel` *before* reading its length, so speed reset to 1 every frame
+  and the missile never accelerated past 16 m/s — you simply outran it. Capture
+  the magnitude before touching the vector.
+- **Enemies flew tail-first.** `Object3D.lookAt` aims **+Z** at the target, but
+  every hull noses **−Z**.
+- **A hitch on every kill.** It looked like the explosion; it was the *respawn*
+  deep-cloning a GLB and building two fresh geometries and materials mid-frame.
+- **Black collectibles.** `vertexColors: true` on an `InstancedMesh` makes the
+  shader look for a per-vertex colour attribute the geometry doesn't have, so it
+  reads black. Instanced colours work *without* it.
+- **A HUD exception blanked the game.** An error thrown in `renderHUD` skipped
+  `renderer.render`, leaving the last frame on screen — which looked exactly like
+  a stale build.
+- **A global `canvas` CSS rule** yanked the radar's 2D canvas to the viewport
+  corner. Scope selectors to `#app canvas`.
+- **`#menu > *` out-specifies `.stage`.** ID-prefixed selectors beat bare classes,
+  which is why the hangar drag silently did nothing.
+
+## Future improvements
+
+**World**
+- Move terrain generation into a Web Worker — currently on the main thread and
+  budgeted, which works but caps how fast you can travel before chunks lag
+- Floating origin for very long flights (precision drifts past ~1e6 units)
+- Biome-specific props: trees, settlements, airstrips, landmark structures
+- Weather systems — rain volumes, wind that actually pushes the ship
+
+**Gameplay**
+- Persistent progression: unlock hulls, upgrade stats between runs
+- Race mode variants — time trial ghosts, elimination, checkpoints with branching
+  routes
+- Co-op or ghost multiplayer; the drifter system is most of the scaffolding for a
+  networked pilot already
+- Damage states on the hull mesh rather than just a hull bar
+- Landing and takeoff at settlements
+
+**Feel**
+- Hull-relative camera shake and G-force effects on the cockpit view
+- Doppler and positional audio for passing craft (`PannerNode`)
+- Engine audio that responds continuously rather than on boost transitions
+- Controller support — the virtual stick maps naturally to an analogue stick
+
+**Technical**
+- KTX2 / Basis for textures (another ~2× over WebP, at the cost of shipping a
+  transcoder)
+- Instanced rendering for drifters and garrison hostiles
+- A proper settings menu: render scale, draw distance, quality presets, key rebinding
+- Automated visual regression on the contact sheet, so a model change that breaks
+  an orientation fails loudly
+
+## Tech
+
+three.js · Vite · vanilla JS, no framework · Web Audio API · `@gltf-transform/cli`
+and `ffmpeg` for the asset pipeline. No runtime network requests — everything is
+local, so it works on venue wifi or none at all.
+
+Ship models generated with [Meshy](https://meshy.ai).

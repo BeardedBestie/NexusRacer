@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { WEAPONS } from './ships.js';
+import { BOLT_SCALE, MISSILE_SCALE, FX_SCALE } from './scale.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
 const _q = new THREE.Quaternion();
@@ -107,7 +108,7 @@ export class CombatSystem {
 
       const mesh = this._take('bolt', boltGeo, w.color);
       const [r, len] = w.size;
-      mesh.scale.set(r, r, len);
+      mesh.scale.set(r * BOLT_SCALE, r * BOLT_SCALE, len * BOLT_SCALE);
       mesh.position.copy(origin);
       mesh.quaternion.setFromUnitVectors(FWD, d);
 
@@ -134,7 +135,7 @@ export class CombatSystem {
         d.x += Math.cos(a) * 0.05; d.y += Math.sin(a) * 0.05; d.normalize();
       }
       const mesh = this._take('missile', missileGeo, w.color);
-      mesh.scale.setScalar(1);
+      mesh.scale.setScalar(MISSILE_SCALE);
       mesh.position.copy(origin);
       mesh.quaternion.setFromUnitVectors(FWD, d);
 
@@ -161,13 +162,13 @@ export class CombatSystem {
       if (proj < 0 || proj > w.range) continue;
       _v2.copy(dir).multiplyScalar(proj).add(origin);
       const dist = _v2.distanceTo(t.position);
-      if (dist < (t.radius ?? 12) + 6 && proj < bestT) { best = t; bestT = proj; }
+      if (dist < (t.radius ?? 12) + 40 && proj < bestT) { best = t; bestT = proj; }
     }
     const end = _v3.copy(dir).multiplyScalar(best ? bestT : w.range).add(origin);
     this.beams.push({ a: origin.clone(), b: end.clone(), color: w.color, width: w.width, t: 0.06 });
     if (best) {
       this.damage(best, w.dps * dt * dmgMult, owner);
-      if (Math.random() < dt * 22) this.spark(end, w.color, 6);
+      if (Math.random() < dt * 22) this.spark(end, w.color, 6 * FX_SCALE);
     }
     return best;
   }
@@ -191,7 +192,7 @@ export class CombatSystem {
   }
 
   /** Big multi-stage fireball for crashes and kills. */
-  fireball(pos, size = 90, color = 0xffb347) {
+  fireball(pos, size = 90 * FX_SCALE, color = 0xffb347) {
     this.spark(pos, 0xffffff, 1, size * 0.55);
     this.spark(pos, color, 1, size);
     this.spark(pos, 0xff4d2d, 1, size * 1.4);
@@ -205,7 +206,7 @@ export class CombatSystem {
     }
   }
 
-  spark(pos, color, count = 5, size = 8) {
+  spark(pos, color, count = 5, size = 8 * FX_SCALE) {
     const m = this._take('flare', flareGeo, color);
     m.position.copy(pos);
     m.scale.setScalar(size * 0.4);
@@ -231,13 +232,13 @@ export class CombatSystem {
         const proj = THREE.MathUtils.clamp(_v3.dot(b.dir), 0, travel);
         const cx = prev.x + b.dir.x * proj, cy = prev.y + b.dir.y * proj, cz = prev.z + b.dir.z * proj;
         const dx = t.position.x - cx, dy = t.position.y - cy, dz = t.position.z - cz;
-        if (dx * dx + dy * dy + dz * dz < Math.pow((t.radius ?? 12) + 3, 2)) { hit = t; break; }
+        if (dx * dx + dy * dy + dz * dz < Math.pow((t.radius ?? 12) + 20, 2)) { hit = t; break; }
       }
 
       const groundY = hf ? hf.height(b.mesh.position.x, b.mesh.position.z) : -1e9;
       if (hit || b.life <= 0 || b.mesh.position.y < groundY) {
-        if (hit) { this.damage(hit, b.dmg, b.owner); this.spark(b.mesh.position, b.w.color, 3, 7); }
-        else if (b.life > 0) this.spark(b.mesh.position, b.w.color, 2, 5);
+        if (hit) { this.damage(hit, b.dmg, b.owner); this.spark(b.mesh.position, b.w.color, 3, 7 * FX_SCALE); }
+        else if (b.life > 0) this.spark(b.mesh.position, b.w.color, 2, 5 * FX_SCALE);
         this._give('bolt', b.mesh);
         this.bolts.splice(i, 1);
       }
@@ -274,12 +275,12 @@ export class CombatSystem {
       m.mesh.quaternion.setFromUnitVectors(FWD, _v.copy(m.vel).normalize());
       m.life -= dt;
 
-      if (Math.random() < dt * 30) this.spark(m.mesh.position, 0xff8844, 1, 3.2);
+      if (Math.random() < dt * 30) this.spark(m.mesh.position, 0xff8844, 1, 3.2 * FX_SCALE);
 
       let boom = m.life <= 0;
       for (const t of targets) {
         if (!t.alive || t === m.owner) continue;
-        if (t.position.distanceToSquared(m.mesh.position) < Math.pow((t.radius ?? 12) + 6, 2)) {
+        if (t.position.distanceToSquared(m.mesh.position) < Math.pow((t.radius ?? 12) + 40, 2)) {
           this.damage(t, m.dmg, m.owner); boom = true; break;
         }
       }
@@ -288,7 +289,7 @@ export class CombatSystem {
 
       if (boom) {
         if (w.splash) this.explode(m.mesh.position, w.splashR, w.splash, targets, m.owner, w.color);
-        else this.spark(m.mesh.position, w.color, 4, 14);
+        else this.spark(m.mesh.position, w.color, 4, 14 * FX_SCALE);
         this._give('missile', m.mesh);
         this.missiles.splice(i, 1);
       }

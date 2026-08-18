@@ -7,7 +7,10 @@
     "dev": "node scripts/sound-manifest.mjs && vite",
     "build": "node scripts/sound-manifest.mjs && vite build",
     "preview": "vite preview --port 4173",
-    "sounds": "node scripts/sound-manifest.mjs"
+    "sounds": "node scripts/sound-manifest.mjs",
+    "optimize": "node scripts/optimize-assets.mjs",
+    "optimize:models": "node scripts/optimize-assets.mjs models",
+    "optimize:audio": "node scripts/optimize-assets.mjs audio"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +19,7 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.4.2",
     "vite": "^8.2.1"
   },
   "type": "module"

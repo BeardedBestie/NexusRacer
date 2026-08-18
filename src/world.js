@@ -1,13 +1,16 @@
 import * as THREE from 'three';
 import { mulberry32 } from './noise.js';
 import { WEAPONS } from './ships.js';
+import { HOSTILE_SCALE, SHIP_RADIUS } from './scale.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
 
-// Hostiles are read at 1-3km, so they fly oversized to stay legible.
-const HOSTILE_SCALE = 2.1;
 const FWD = new THREE.Vector3(0, 0, -1);
+
+const GUARD_ORBIT = 1300;    // how far guards ring their site
+const ENGAGE_R = 4200;       // player gets this close, the garrison wakes up
+const LEASH_R = 5200;        // guards never chase further than this from home
 
 /**
  * Point a hull's nose along `dir`.
@@ -22,14 +25,19 @@ function faceAlong(mesh, dir) {
 }
 
 export const PICKUP = {
-  SHARD: { id: 'SHARD', score: 250,  color: 0x5ef2ff, size: 70 },
-  CORE:  { id: 'CORE',  score: 2500, color: 0xff4fd8, size: 130 },
-  BOOST: { id: 'BOOST', score: 100,  color: 0xb6ff3d, size: 80 },
-  REPAIR:{ id: 'REPAIR',score: 100,  color: 0xffd66b, size: 80 },
+  SHARD: { id: 'SHARD', score: 250,  color: 0x5ef2ff, size: 170 },
+  CORE:  { id: 'CORE',  score: 2500, color: 0xff4fd8, size: 340 },
+  BOOST: { id: 'BOOST', score: 100,  color: 0xb6ff3d, size: 190 },
+  REPAIR:{ id: 'REPAIR',score: 100,  color: 0xffd66b, size: 190 },
 };
 
-// Landmark-scale pickups: ten times the size, one tenth the density.
-const CELL = 4400;
+const CELL = 5200;
+
+// Loot comes in *sites*, not scattered singles: most of the map is empty sky,
+// and the payoff is a cluster you have to fly out and find. The richest sites
+// are garrisoned, so an encounter is something you choose to pick.
+const SITE_CHANCE = 0.20;
+const GUARD_CHANCE = 0.55;
 
 // ---------------------------------------------------------------------------
 // Deterministic collectible field.  Cells are seeded from world coords, so the
@@ -41,6 +49,7 @@ export class CollectibleField {
     this.hf = hf;
     this.seed = seed;
     this.active = new Map();   // key -> array of items
+    this.sites = new Map();    // key -> site marker
     this.taken = new Set();
     this.radius = 7;
 
@@ -59,7 +68,7 @@ export class CollectibleField {
     this.glow = new THREE.InstancedMesh(
       gg,
       new THREE.MeshBasicMaterial({
-        transparent: true, opacity: 0.22, fog: false,
+        transparent: true, opacity: 0.16, fog: false,
         blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
       }),
       1200,
@@ -78,29 +87,61 @@ export class CollectibleField {
     if (this.active.has(key)) return this.active.get(key);
     const rng = mulberry32((cx * 73856093) ^ (cz * 19349663) ^ this.seed);
     const items = [];
-    // Rare by design: most cells are empty, so a pickup is a landmark you
-    // navigate to rather than something you fly through by accident.
-    const n = rng() < 0.55 ? 1 : 0;
-    for (let i = 0; i < n; i++) {
-      const x = cx * CELL + rng() * CELL;
-      const z = cz * CELL + rng() * CELL;
-      const ground = this.hf.height(x, z);
-      const r = rng();
-      let type = PICKUP.SHARD;
-      if (r > 0.955) type = PICKUP.CORE;
-      else if (r > 0.90) type = PICKUP.BOOST;
-      else if (r > 0.855) type = PICKUP.REPAIR;
-      const y = Math.max(ground, 0) + 220 + rng() * 700;
-      items.push({
-        id: `${cx}:${cz}:${i}`,
-        type,
-        position: new THREE.Vector3(x, y, z),
-        phase: rng() * Math.PI * 2,
-        alive: true,
-      });
+
+    if (rng() < SITE_CHANCE) {
+      const sx = cx * CELL + rng() * CELL;
+      const sz = cz * CELL + rng() * CELL;
+      const ground = this.hf.height(sx, sz);
+      const sy = Math.max(ground, 0) + 700 + rng() * 900;
+      const guarded = rng() < GUARD_CHANCE;
+
+      const site = {
+        id: key,
+        pos: new THREE.Vector3(sx, sy, sz),
+        guarded,
+        remaining: 0,
+      };
+
+      const n = guarded ? 4 + Math.floor(rng() * 4) : 2 + Math.floor(rng() * 3);
+      for (let i = 0; i < n; i++) {
+        // clustered in a loose shell around the site marker
+        const a = rng() * Math.PI * 2;
+        const rad = 260 + rng() * 900;
+        const r = rng();
+        let type = PICKUP.SHARD;
+        if (guarded && r > 0.55) type = PICKUP.CORE;
+        else if (r > 0.90) type = PICKUP.BOOST;
+        else if (r > 0.80) type = PICKUP.REPAIR;
+        items.push({
+          id: `${key}:${i}`,
+          type,
+          site,
+          position: new THREE.Vector3(
+            sx + Math.cos(a) * rad,
+            sy + (rng() - 0.5) * 620,
+            sz + Math.sin(a) * rad,
+          ),
+          phase: rng() * Math.PI * 2,
+          alive: true,
+        });
+        if (!this.taken.has(`${key}:${i}`)) site.remaining++;
+      }
+      this.sites.set(key, site);
     }
+
     this.active.set(key, items);
     return items;
+  }
+
+  /** Nearest garrisoned site still holding loot, or null. */
+  nearestGuardedSite(pos, maxDist = 16000) {
+    let best = null, bestD = maxDist * maxDist;
+    for (const [, site] of this.sites) {
+      if (!site.guarded || site.remaining <= 0) continue;
+      const d = site.pos.distanceToSquared(pos);
+      if (d < bestD) { bestD = d; best = site; }
+    }
+    return best;
   }
 
   /** @returns {Array} collected items this frame */
@@ -112,7 +153,10 @@ export class CollectibleField {
     // prune far cells (keeps the map bounded; taken-set preserves progress)
     for (const key of this.active.keys()) {
       const [cx, cz] = key.split(',').map(Number);
-      if (Math.abs(cx - ccx) > R + 2 || Math.abs(cz - ccz) > R + 2) this.active.delete(key);
+      if (Math.abs(cx - ccx) > R + 2 || Math.abs(cz - ccz) > R + 2) {
+        this.active.delete(key);
+        this.sites.delete(key);
+      }
     }
 
     const collected = [];
@@ -133,10 +177,11 @@ export class CollectibleField {
             const d = Math.sqrt(d2);
             it.position.addScaledVector(_v.normalize(), Math.min(d, (mr * 8 - d) * dt * 2.4));
           }
-          const grab = it.type.size + 26;
+          const grab = it.type.size + SHIP_RADIUS;
           if (d2 < grab * grab) {
             this.taken.add(it.id);
             it.alive = false;
+            if (it.site) it.site.remaining--;
             collected.push(it);
             continue;
           }
@@ -152,8 +197,8 @@ export class CollectibleField {
           this.mesh.setMatrixAt(n, _m);
           // Shrink the halo as you close in, or it fills the screen on approach.
           const near = THREE.MathUtils.clamp(
-            (Math.sqrt(d2) - it.type.size) / (it.type.size * 4), 0, 1);
-          _s.setScalar(it.type.size * (1 + 0.45 * near));
+            (Math.sqrt(d2) - it.type.size * 2) / (it.type.size * 6), 0, 1);
+          _s.setScalar(it.type.size * (0.55 + 0.9 * near));
           _m.compose(_v2, _q, _s);
           this.glow.setMatrixAt(n, _m);
           this._col.setHex(it.type.color).convertSRGBToLinear();
@@ -178,9 +223,9 @@ export class CollectibleField {
 // ---------------------------------------------------------------------------
 // Hostile fighters — real hulls from the model library, flown by the AI.
 // ---------------------------------------------------------------------------
-const RING_GEO = new THREE.TorusGeometry(21, 1.1, 4, 20);
-const TRAIL_GEO = new THREE.ConeGeometry(2.1, 12, 8);
-const HULL_GEO = new THREE.ConeGeometry(5, 20, 5);
+const RING_GEO = new THREE.TorusGeometry(215, 4, 4, 24);
+const TRAIL_GEO = new THREE.ConeGeometry(20, 120, 8);
+const HULL_GEO = new THREE.ConeGeometry(50, 200, 5);
 
 function fallbackHull() {
   const g = new THREE.Group();
@@ -200,7 +245,7 @@ function dressHostile(root, color) {
     blending: THREE.AdditiveBlending, depthWrite: false,
   }));
   trail.rotation.x = Math.PI / 2;
-  trail.position.z = 12;
+  trail.position.z = 120;
   root.add(trail);
 
   const ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({
@@ -236,6 +281,8 @@ export class DroneSwarm {
     this.rng = mulberry32(99);
     this.onKill = null;
     this.drones = [];
+    this.home = null;
+    this.engaged = false;
     this.build(opts.hulls ?? []);
   }
 
@@ -252,7 +299,7 @@ export class DroneSwarm {
         mesh, position: mesh.position, radius: 16 * HOSTILE_SCALE,
         hp: 110, maxHp: 110, alive: false, isEnemy: true,
         vel: new THREE.Vector3(), cd: 0, wobble: this.rng() * 6.28,
-        score: 200, respawn: i * 0.35, pooled: true,
+        score: 200, respawn: 0, orbit: 0, orbitR: GUARD_ORBIT, pooled: true,
         // The pool owns the death sequence, so damage only drains hp here.
         applyDamage(dmg) { this.hp -= dmg; },
       });
@@ -266,51 +313,49 @@ export class DroneSwarm {
     for (const d of this.drones) d.mesh.visible = false;
   }
 
-  /** A point out in front of the player, biased toward their flight path. */
-  frontalPoint(player, out = new THREE.Vector3()) {
-    const fwd = _v.set(0, 0, -1).applyQuaternion(player.flight.quaternion);
-    const lead = player.velocity ? player.velocity.length() * 2.2 : 0;
-    const heading = Math.atan2(fwd.x, fwd.z);
-    const a = heading + (this.rng() - 0.5) * 1.4;      // +/- 40 degrees of the nose
-    const d = this.spawnR * (0.75 + this.rng() * 0.5) + lead;
-    const x = player.position.x + Math.sin(a) * d;
-    const z = player.position.z + Math.cos(a) * d;
-    const y = Math.max(this.hf.height(x, z) + 160,
-      player.position.y + (this.rng() - 0.45) * 420);
-    return out.set(x, y, z);
-  }
-
-  /** Put a dormant hull back in the fight, out in front of the player. */
-  deploy(d, player) {
-    this.frontalPoint(player, _v3);
-    d.mesh.position.copy(_v3);
+  /** Ring the garrison around its site. */
+  station(d, i) {
+    const a = (i / this.max) * Math.PI * 2 + this.rng() * 0.4;
+    const rad = GUARD_ORBIT * (0.7 + this.rng() * 0.6);
+    d.mesh.position.set(
+      this.home.pos.x + Math.cos(a) * rad,
+      this.home.pos.y + (this.rng() - 0.5) * 500,
+      this.home.pos.z + Math.sin(a) * rad,
+    );
     d.mesh.visible = true;
-    d.hp = d.maxHp;
     d.alive = true;
+    d.hp = d.maxHp;
     d.cd = 1.2 + this.rng() * 1.8;
-    _v3.copy(player.position).sub(d.mesh.position);
-    d.vel.copy(_v3).normalize().multiplyScalar(240);
-    faceAlong(d.mesh, _v3);
-    const ring = d.mesh.userData.ring;
-    if (ring) ring.visible = true;
+    d.orbit = a;
+    d.orbitR = rad;
+    d.vel.set(0, 0, 0);
   }
 
-  /** Retire a hull without destroying it. */
-  retire(d, explode) {
-    d.alive = false;
-    d.mesh.visible = false;
-    d.respawn = explode ? 1.4 + this.rng() * 1.6 : 0.4;
-    if (explode) {
-      this.combat.fireball(d.position, 90, 0xffb347);
-      this.onKill?.(d);
+  /**
+   * Hostiles no longer roam. They garrison the nearest guarded loot site and
+   * only wake up when the player comes to take it — so the sky between sites
+   * stays empty and the fights are something you fly toward on purpose.
+   */
+  update(dt, player, field) {
+    const site = field ? field.nearestGuardedSite(player.position) : null;
+
+    if (site !== this.home) {
+      this.home = site;
+      if (site) this.drones.forEach((d, i) => this.station(d, i));
+      else for (const d of this.drones) { d.alive = false; d.mesh.visible = false; }
     }
-  }
+    if (!this.home) return;
 
-  update(dt, player) {
-    for (const d of this.drones) {
+    const siteDist = player.position.distanceTo(this.home.pos);
+    this.engaged = siteDist < ENGAGE_R;
+    const t = performance.now() * 0.001;
+
+    for (let i = 0; i < this.drones.length; i++) {
+      const d = this.drones[i];
       if (!d.alive) {
         d.respawn -= dt;
-        if (d.respawn <= 0) this.deploy(d, player);
+        // downed guards only come back if the site still has loot worth guarding
+        if (d.respawn <= 0 && this.home.remaining > 0) this.station(d, i);
         continue;
       }
       if (d.hp <= 0) { this.retire(d, true); continue; }
@@ -319,35 +364,49 @@ export class DroneSwarm {
       const dist = toP.length();
       toP.normalize();
 
-      // Once overshot, a hostile can never catch a boosting player, so it
-      // disengages and re-enters from the front instead of trailing uselessly.
-      _v2.set(0, 0, -1).applyQuaternion(player.flight.quaternion);
-      const ahead = -toP.dot(_v2);
-      // 900m is about a second of separation at closing speed — past that a
-      // hostile on your six is out of the fight, so send it back around.
-      if (dist > this.spawnR * 3 || (dist > 900 && ahead < -0.35)) {
-        this.deploy(d, player);
-        continue;
+      if (this.engaged) {
+        // break off inside knife range, then swing back around
+        const approach = dist > 1400 ? 1 : -0.55;
+        const desired = _v2.copy(toP).multiplyScalar(approach);
+        desired.x += Math.cos(d.wobble + t * 0.6) * 0.55;
+        desired.y += Math.sin(d.wobble + t * 0.9) * 0.3;
+        desired.normalize().multiplyScalar(430);
+        d.vel.lerp(desired, 1 - Math.exp(-dt * 1.5));
+
+        // never let a guard get dragged off its post
+        _v3.copy(d.position).sub(this.home.pos);
+        const leash = _v3.length();
+        if (leash > LEASH_R) d.vel.addScaledVector(_v3.divideScalar(leash), -dt * 900);
+      } else {
+        // idle patrol: slow circuit of the site
+        d.orbit += dt * 0.22;
+        _v3.set(
+          this.home.pos.x + Math.cos(d.orbit) * d.orbitR,
+          this.home.pos.y + Math.sin(d.orbit * 1.7) * 220,
+          this.home.pos.z + Math.sin(d.orbit) * d.orbitR,
+        ).sub(d.position);
+        d.vel.lerp(_v3.normalize().multiplyScalar(200), 1 - Math.exp(-dt * 1.2));
       }
 
-      const approach = dist > 620 ? 1 : -0.55;
-      const desired = _v2.copy(toP).multiplyScalar(approach);
-      const t = performance.now() * 0.001;
-      desired.x += Math.cos(d.wobble + t * 0.6) * 0.55;
-      desired.y += Math.sin(d.wobble + t * 0.9) * 0.3;
-      desired.normalize().multiplyScalar(430);
-      d.vel.lerp(desired, 1 - Math.exp(-dt * 1.5));
       d.mesh.position.addScaledVector(d.vel, dt);
 
-      const gy = this.hf.height(d.position.x, d.position.z) + 110;
+      const gy = this.hf.height(d.position.x, d.position.z) + 220;
       if (d.position.y < gy) d.position.y += (gy - d.position.y) * Math.min(1, dt * 3);
 
       if (d.vel.lengthSq() > 1) faceAlong(d.mesh, d.vel);
+      // The threat ring is a spotting aid: strong at range, gone up close
+      // where the hull itself is perfectly readable.
       const ring = d.mesh.userData.ring;
-      if (ring) { ring.rotation.z += dt * 2.2; ring.material.opacity = 0.35 + 0.25 * Math.sin(t * 4); }
+      if (ring) {
+        ring.rotation.z += dt * 2.2;
+        const far = Math.min(1, Math.max(0, (dist - 700) / 1400));
+        const base = this.engaged ? 0.5 + 0.2 * Math.sin(t * 4) : 0.18;
+        ring.material.opacity = base * far;
+        ring.visible = far > 0.02;
+      }
 
       d.cd -= dt;
-      if (d.cd <= 0 && dist < 1800) {
+      if (this.engaged && d.cd <= 0 && dist < 2600) {
         d.cd = 1.3 + Math.random() * 1.5;
         _v.copy(player.position).sub(d.position).normalize();
         _v.addScaledVector(player.velocity ?? _v2.set(0, 0, 0), 0.0009).normalize();

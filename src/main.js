@@ -6,10 +6,15 @@ import { SHIPS_BY_ID, resolveStats, loadShipModel, nudgeOrientation, pickEnemySh
 import { FlightModel, ASSIST } from './flight.js';
 import { CombatSystem, Loadout } from './weapons.js';
 import { CollectibleField, DroneSwarm, PICKUP } from './world.js';
+import { Drifters } from './drifters.js';
 import { Track, GateField, AIRacer, RACER_ROSTER, NODE_SPACING, GATE_RADIUS } from './race.js';
 import { Input } from './input.js';
 import { HUD } from './hud.js';
 import { HangarStage } from './hangar.js';
+import {
+  SHIP_RADIUS, CAM_BACK, CAM_UP, CAM_BACK_FAR, CAM_UP_FAR, CAM_LOOK_AHEAD,
+  CAM_GROUND_CLEAR, FOV_BASE, FOV_SPEED, FOV_BOOST, MUZZLE_FWD, FX_SCALE,
+} from './scale.js';
 import { Audio } from './audio.js';
 
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
@@ -17,6 +22,7 @@ const _q = new THREE.Quaternion(), _e = new THREE.Euler();
 const FWD = new THREE.Vector3(0, 0, -1);
 const UP = new THREE.Vector3(0, 1, 0);
 const DEAD_ZONE = 0.07;
+const HUD_FADE_SECONDS = 60;
 const _aim = new THREE.Vector3();
 const _proj = new THREE.Vector3();
 
@@ -45,7 +51,7 @@ const scene = new THREE.Scene();
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.65;
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 1.2, 40000);
+const camera = new THREE.PerspectiveCamera(FOV_BASE, innerWidth / innerHeight, 2, 60000);
 scene.add(camera);
 
 addEventListener('resize', () => {
@@ -75,7 +81,7 @@ class Player {
     this.model = model;
     this.hp = this.stats.hullMax;
     this.alive = true;
-    this.radius = 14;
+    this.radius = SHIP_RADIUS;
     this.isPlayer = true;
     this.shield = 0;
     this.invuln = 0;
@@ -91,9 +97,9 @@ class Player {
       color: new THREE.Color(ship.accent), transparent: true, opacity: 0.9,
       blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
     });
-    this.thruster = new THREE.Mesh(new THREE.ConeGeometry(1.9, 11, 8), glowMat);
+    this.thruster = new THREE.Mesh(new THREE.ConeGeometry(19, 110, 8), glowMat);
     this.thruster.rotation.x = Math.PI / 2;   // taper points aft (+Z)
-    this.thruster.position.z = 12;
+    this.thruster.position.z = 120;
     model.add(this.thruster);
     this.glowMat = glowMat;
   }
@@ -128,7 +134,7 @@ class Game {
     this.shake = 0;
     this.camPos = new THREE.Vector3();
     this.camQuat = new THREE.Quaternion();
-    this.fov = 72;
+    this.fov = FOV_BASE;
     this.acc = 0;
     this.stick = { x: 0, y: 0 };
     this.lock = null;
@@ -141,7 +147,7 @@ class Game {
   async start(cfg) {
     this.cfg = cfg;
     this.mode = cfg.mode;
-    this.goal = cfg.goal || 0;
+    this.goal = cfg.mode === 'chill' ? 0 : (cfg.goal || 0);
     this.goalMet = false;
     this.crashing = false;
     this.wreck = null;
@@ -158,7 +164,7 @@ class Game {
     } catch (err) {
       console.error('model load failed', err);
       model = new THREE.Mesh(
-        new THREE.ConeGeometry(6, 24, 5),
+        new THREE.ConeGeometry(60, 240, 5),
         new THREE.MeshLambertMaterial({ color: 0x8899cc, flatShading: true }),
       );
       model.rotation.x = -Math.PI / 2;
@@ -191,6 +197,7 @@ class Game {
     this.targets = [this.player];
 
     if (this.mode === 'free') this._setupFree(enemyHulls);
+    else if (this.mode === 'chill') this._setupChill(enemyHulls);
     else this._setupRace(enemyHulls, enemyDefs);
 
     // Pooled hostiles report their own kills when they retire; this only
@@ -208,6 +215,7 @@ class Game {
 
     hud.hideLoading();
     hud.hideMenu();
+    hangar.setInteractive(false);
     this.state = 'play';
     this.time = 0;
     audio.ensure();
@@ -216,7 +224,7 @@ class Game {
 
   _setupFree(hulls = []) {
     const p = this.player;
-    p.flight.position.set(0, Math.max(hf.height(0, 0), 0) + 800, 0);
+    p.flight.position.set(0, Math.max(hf.height(0, 0), 0) + 1200, 0);
     p.flight.velocity.set(0, 0, -260);
     this.field = new CollectibleField(scene, hf, WORLD_SEED + 5);
     this.drones = new DroneSwarm(scene, hf, this.combat, { max: 5, hulls });
@@ -233,6 +241,19 @@ class Game {
     hud.toast('COLLECT THE SHARDS', '#5ef2ff');
   }
 
+  _setupChill(hulls = []) {
+    const p = this.player;
+    p.flight.position.set(0, Math.max(hf.height(0, 0), 0) + 1400, 0);
+    p.flight.velocity.set(0, 0, -280);
+    this.drifters = new Drifters(scene, hf, this.combat, { max: 4, hulls });
+    this.drifters.prewarm(renderer, camera, scene);
+    this.drifters.onHail = (d, line) => hud.hail(d.name, line);
+    this.runTime = 0;
+    this.ambience = 1;
+    audio.music(true, 'chillMusic');
+    hud.toast('CHILL VIBES', '#7affd6', 2600);
+  }
+
   _setupRace(hulls = [], defs = []) {
     this.track = new Track(hf, WORLD_SEED);
     this.gates = new GateField(scene, this.track);
@@ -247,14 +268,14 @@ class Game {
 
     const start = this.track.sample(2, new THREE.Vector3());
     const tan = this.track.tangent(2, new THREE.Vector3());
-    this.player.flight.position.copy(start).addScaledVector(tan, -180);
+    this.player.flight.position.copy(start).addScaledVector(tan, -900);
     this.player.flight.quaternion.setFromUnitVectors(FWD, tan);
     this.player.flight.velocity.copy(tan).multiplyScalar(240);
     this.playerF = 0;
 
     this.racers = RACER_ROSTER.map((r, i) => {
       const a = new AIRacer(scene, this.track, {
-        ...r, startF: 1 + i * 0.6, hull: hulls[i % Math.max(1, hulls.length)],
+        ...r, startF: 1.5 + i * 1.9, hull: hulls[i % Math.max(1, hulls.length)],
       });
       a.shipName = defs[i % Math.max(1, defs.length)]?.name;
       this.targets.push(a);
@@ -272,7 +293,8 @@ class Game {
     }
     scene.add(camera);
     this.crashing = false; this.wreck = null;
-    this.field = null; this.drones = null; this.track = null;
+    this.field = null; this.drones = null; this.track = null; this.drifters = null;
+    hud.setAmbience(1);
     this.gates = null; this.racers = null;
   }
 
@@ -328,8 +350,9 @@ class Game {
     const wantSecondary = input.mouse(2) || input.down('KeyF');
 
     f.forward(_v);
-    const muzzle = _v2.copy(f.position).addScaledVector(_v, 16);
-    this.updateLock(dt, _v);
+    const muzzle = _v2.copy(f.position).addScaledVector(_v, MUZZLE_FWD);
+    if (this.mode === 'chill') { this.lock = null; this.lockStrength = 0; }
+    else this.updateLock(dt, _v);
 
     if (wantPrimary) {
       const w = lo.primary;
@@ -473,8 +496,9 @@ class Game {
     if (a.id === 'aegis') p.shield = 300;
     if (a.id === 'blink') {
       p.flight.forward(_v);
-      p.flight.position.addScaledVector(_v, 250);
+      p.flight.position.addScaledVector(_v, a.dist ?? 2500);
       this.shake = 1;
+      this.combat.spark(p.flight.position, 0xc66bff, 1, 260);
     }
     if (a.id === 'vortex' && this.field) this.vortexT = a.dur;
   }
@@ -531,7 +555,16 @@ class Game {
       steps++;
     }
 
-    if (p.flight.crashed && !this.crashing) this.crash(p.flight.lastImpact);
+    if (p.flight.crashed && !this.crashing) {
+      if (this.mode === 'chill') {
+        // Nothing ends a drift. Scrape the ground and you get bounced back up.
+        p.flight.velocity.y = Math.abs(p.flight.velocity.y) * 0.4 + 60;
+        p.flight.position.y += 40;
+        this.shake = Math.min(1, this.shake + 0.35);
+      } else {
+        this.crash(p.flight.lastImpact);
+      }
+    }
 
     // model follows physics
     this.playerModel.position.copy(p.flight.position);
@@ -545,13 +578,14 @@ class Game {
     this.combat.update(dt, this.targets, hf);
 
     if (this.mode === 'free') this.updateFree(dt);
+    else if (this.mode === 'chill') this.updateChill(dt);
     else this.updateRace(dt);
 
     this.updateCamera(dt);
 
     audio.engine(THREE.MathUtils.clamp(p.flight.speed / p.stats.maxSpeed, 0, 1.2), boost);
 
-    if (!p.alive && !this.crashing) this.crash(p.flight.speed * 0.4);
+    if (!p.alive && !this.crashing && this.mode !== 'chill') this.crash(p.flight.speed * 0.4);
   }
 
   updateFree(dt) {
@@ -584,8 +618,27 @@ class Game {
       return;
     }
 
-    this.drones.update(dt, p);
+    this.drones.update(dt, p, this.field);
     this.targets = [p, ...this.drones.live];
+  }
+
+  updateChill(dt) {
+    const p = this.player;
+    this.runTime += dt;
+    this.drifters.update(dt, p);
+    this.targets = [p, ...this.drifters.live];
+
+    for (const s of this.drifters.live) {
+      const near = s.position.distanceTo(p.flight.position) < 1600;
+      if (near && !s._passed) { s._passed = true; this.drifters.seen = (this.drifters.seen ?? 0) + 1; }
+      else if (!near && s.position.distanceTo(p.flight.position) > 2600) s._passed = false;
+    }
+
+    // The HUD dissolves over five minutes, down to a 5% ghost — the mode is
+    // about the view, not the instruments.
+    const k = Math.min(1, this.runTime / HUD_FADE_SECONDS);
+    this.ambience = 1 - (k * k * (3 - 2 * k));
+    hud.setAmbience(this.ambience, true);
   }
 
   updateRace(dt) {
@@ -661,7 +714,7 @@ class Game {
     this.crashing = true;
     this.shake = 1.6;
 
-    this.combat.fireball(p.flight.position, 110 + Math.min(impact, 300) * 0.5, 0xffb347);
+    this.combat.fireball(p.flight.position, (110 + Math.min(impact, 300) * 0.5) * FX_SCALE, 0xffb347);
     audio.boom();
     hud.flash('#ffd9a0', 0.85);
     hud.toast('WRECKED', '#ff4d3d', 2000);
@@ -675,13 +728,13 @@ class Game {
     const mat = new THREE.MeshLambertMaterial({ color: 0x3a3138, flatShading: true });
     for (let i = 0; i < 7; i++) {
       const g = new THREE.Mesh(
-        new THREE.TetrahedronGeometry(2.4 + Math.random() * 4.5, 0), mat);
+        new THREE.TetrahedronGeometry((2.4 + Math.random() * 4.5) * 7, 0), mat);
       g.position.copy(p.flight.position);
       wreck.add(g);
       g.userData.vel = new THREE.Vector3(
-        (Math.random() - 0.5) * 160,
-        60 + Math.random() * 120,
-        (Math.random() - 0.5) * 160,
+        (Math.random() - 0.5) * 380,
+        140 + Math.random() * 260,
+        (Math.random() - 0.5) * 380,
       ).addScaledVector(p.flight.velocity, 0.25);
       g.userData.spin = new THREE.Vector3(
         Math.random() * 6 - 3, Math.random() * 6 - 3, Math.random() * 6 - 3);
@@ -699,13 +752,13 @@ class Game {
       g.rotation.x += g.userData.spin.x * dt;
       g.rotation.y += g.userData.spin.y * dt;
       g.rotation.z += g.userData.spin.z * dt;
-      const gy = hf.height(g.position.x, g.position.z) + 1.5;
+      const gy = hf.height(g.position.x, g.position.z) + 12;
       if (g.position.y < gy) {
         g.position.y = gy;
         g.userData.vel.y = Math.abs(g.userData.vel.y) * 0.32;
         g.userData.vel.multiplyScalar(0.7);
       }
-      if (Math.random() < dt * 3) this.combat.spark(g.position, 0xff8844, 1, 5);
+      if (Math.random() < dt * 3) this.combat.spark(g.position, 0xff8844, 1, 34);
     }
     if (this.crashT > 2.2) this.finish();
   }
@@ -717,8 +770,8 @@ class Game {
     if (this.crashing) {
       const focus = this.wreck.children[0]?.position ?? f.position;
       const target = _v3.copy(focus).add(
-        new THREE.Vector3(Math.cos(this.crashT * 0.7), 0.42, Math.sin(this.crashT * 0.7)).multiplyScalar(120));
-      target.y = Math.max(target.y, hf.height(target.x, target.z) + 22, 26);
+        new THREE.Vector3(Math.cos(this.crashT * 0.7), 0.42, Math.sin(this.crashT * 0.7)).multiplyScalar(760));
+      target.y = Math.max(target.y, hf.height(target.x, target.z) + 140, 160);
       this.camPos.lerp(target, 1 - Math.exp(-dt * 3.2));
       const m = new THREE.Matrix4().lookAt(this.camPos, focus, UP);
       _q.setFromRotationMatrix(m);
@@ -727,8 +780,8 @@ class Game {
       camera.quaternion.copy(this.camQuat);
       this.shake = Math.max(0, this.shake - dt * 1.4);
       if (this.shake > 0.001) {
-        camera.position.x += (Math.random() - 0.5) * this.shake * 3;
-        camera.position.y += (Math.random() - 0.5) * this.shake * 3;
+        camera.position.x += (Math.random() - 0.5) * this.shake * 22;
+        camera.position.y += (Math.random() - 0.5) * this.shake * 22;
       }
       return;
     }
@@ -738,25 +791,25 @@ class Game {
     let target;
     if (this.camMode === 2) {
       // cockpit
-      target = _v3.copy(f.position).addScaledVector(_v, 4).addScaledVector(_v2, 3.4);
+      target = _v3.copy(f.position).addScaledVector(_v, 60).addScaledVector(_v2, 34);
       this.camPos.lerp(target, 1 - Math.exp(-dt * 40));
       this.camQuat.slerp(f.quaternion, 1 - Math.exp(-dt * 26));
     } else {
-      const back = this.camMode === 0 ? 48 : 96;
-      const up = this.camMode === 0 ? 9 : 22;
+      const back = this.camMode === 0 ? CAM_BACK : CAM_BACK_FAR;
+      const up = this.camMode === 0 ? CAM_UP : CAM_UP_FAR;
       target = _v3.copy(f.position)
-        .addScaledVector(_v, -(back + spd01 * 16))
+        .addScaledVector(_v, -(back + spd01 * CAM_BACK * 0.28))
         .addScaledVector(_v2, up);
       // lead by one frame of travel so the ship doesn't shrink at high speed
       target.addScaledVector(f.velocity, dt);
       // don't let the chase cam clip through terrain
-      const gy = hf.height(target.x, target.z) + 16;
+      const gy = hf.height(target.x, target.z) + CAM_GROUND_CLEAR;
       if (target.y < gy) target.y = gy;
       this.camPos.lerp(target, 1 - Math.exp(-dt * 14));
 
       _q.copy(f.quaternion);
       // look slightly ahead of the nose
-      const look = _v.clone().multiplyScalar(300).add(f.position).addScaledVector(_v2, 8);
+      const look = _v.clone().multiplyScalar(CAM_LOOK_AHEAD).add(f.position).addScaledVector(_v2, CAM_UP * 0.6);
       const m = new THREE.Matrix4().lookAt(this.camPos, look, _v2);
       _q.setFromRotationMatrix(m);
       this.camQuat.slerp(_q, 1 - Math.exp(-dt * 12));
@@ -769,13 +822,13 @@ class Game {
     this.shake = Math.max(0, this.shake - dt * 2.2);
     const sh = this.shake * 0.9 + (f.boosting ? 0.12 : 0);
     if (sh > 0.001) {
-      camera.position.x += (Math.random() - 0.5) * sh * 2.2;
-      camera.position.y += (Math.random() - 0.5) * sh * 2.2;
+      camera.position.x += (Math.random() - 0.5) * sh * 16;
+      camera.position.y += (Math.random() - 0.5) * sh * 16;
       camera.rotateZ((Math.random() - 0.5) * sh * 0.014);
     }
 
     // speed FOV
-    const wantFov = 70 + spd01 * 18 + (f.boosting ? 12 : 0);
+    const wantFov = FOV_BASE + spd01 * FOV_SPEED + (f.boosting ? FOV_BOOST : 0);
     this.fov += (wantFov - this.fov) * (1 - Math.exp(-dt * 5));
     if (Math.abs(camera.fov - this.fov) > 0.01) {
       camera.fov = this.fov;
@@ -791,6 +844,13 @@ class Game {
     const out = [];
     const r2 = (range * 1.35) ** 2;
 
+    if (this.mode === 'chill') {
+      for (const c of this.drifters.live) {
+        out.push({ x: c.position.x, z: c.position.z, color: '#7affd6', size: 3.4 });
+      }
+      return out;
+    }
+
     if (this.mode === 'free') {
       for (const [, items] of this.field.active) {
         for (const it of items) {
@@ -804,6 +864,14 @@ class Game {
             size: core ? 5 : 3.4,
           });
         }
+      }
+      for (const [, site] of this.field.sites) {
+        if (site.remaining <= 0) continue;
+        out.push({
+          x: site.pos.x, z: site.pos.z, kind: 'site',
+          color: site.guarded ? '#ff8844' : '#7affd6',
+          size: site.guarded ? 7 : 5.5,
+        });
       }
       for (const d of this.drones.drones) {
         if (!d.alive) continue;
@@ -853,9 +921,12 @@ class Game {
         dist,
         locked: t === this.lock,
         lockT: t === this.lock ? (this.lockStrength ?? 0) : 0,
-        hp01: t.maxHp ? THREE.MathUtils.clamp(t.hp / t.maxHp, 0, 1) : 1,
+        hp01: this.mode === 'chill' ? 1 : (t.maxHp ? THREE.MathUtils.clamp(t.hp / t.maxHp, 0, 1) : 1),
         name: t.name ?? null,
-        color: t.color ? '#' + t.color.toString(16).padStart(6, '0') : '#ff3355',
+        quiet: this.mode === 'chill',
+        color: this.mode === 'chill'
+          ? '#7ad4ff'
+          : (t.color ? '#' + t.color.toString(16).padStart(6, '0') : '#ff3355'),
       });
     }
     return out;
@@ -888,11 +959,23 @@ class Game {
         : { label: 'GATES CLEARED', have: this.gatesCleared, need: this.goal };
     }
 
-    if (this.mode === 'free') {
+    if (this.mode === 'chill') {
+      d.sub = `${this.drifters.live.length} CRAFT IN RANGE`;
+      d.top = `<div class="lbl">CHILL VIBES</div>
+        <div style="font-size:19px;color:#e8f4ff">${fmtTime(this.runTime)}</div>
+        <div class="lbl" style="margin-top:3px">NO DESTINATION</div>`;
+      d.board = '';
+    } else if (this.mode === 'free') {
       d.sub = `${p.pickups} PICKUPS · ${p.kills} KILLS${this.combo > 2 ? ` · COMBO ×${this.combo}` : ''}`;
+      const home = this.drones.home;
+      const siteKm = home ? f.position.distanceTo(home.pos) / 1000 : null;
       d.top = `<div class="lbl">FREE RANGE</div>
         <div style="font-size:19px;color:#e8f4ff">${fmtTime(this.runTime)}</div>
-        <div class="lbl" style="margin-top:3px">SECTOR ${Math.floor(f.position.x / 1400)} / ${Math.floor(f.position.z / 1400)}</div>`;
+        <div class="lbl" style="margin-top:3px">${home
+          ? (this.drones.engaged
+              ? '<span style="color:#ff4d3d">GARRISON ENGAGED</span>'
+              : `GUARDED CACHE ${siteKm.toFixed(1)}KM`)
+          : 'NO CONTACTS'}</div>`;
       d.board = '';
     } else {
       const board = [{ name: 'YOU', f: this.playerF, me: true, color: '#b6ff3d' },
@@ -913,7 +996,7 @@ class Game {
     hud.setStick(this.stick.x, this.stick.y);
     hud.drawTargets(this.screenTargets(), !this.crashing);
 
-    const range = this.mode === 'free' ? 14000 : 4500;
+    const range = this.mode === 'race' ? 4500 : 14000;
     p.flight.forward(_v2);
     hud.drawRadar({
       px: f.position.x, pz: f.position.z,
@@ -922,9 +1005,11 @@ class Game {
       blips: this.radarBlips(range),
       show: !this.crashing,
       shifted: this.mode === 'race',      // the circuit board owns the top-left
-      legend: this.mode === 'free'
-        ? { key: 'free', items: [['#5ef2ff', 'SHARD'], ['#ff4fd8', 'CORE'], ['#ff3355', 'HOSTILE']] }
-        : { key: 'race', items: [['#b6ff3d', 'NEXT'], ['#5ef2ff', 'GATE'], ['#ff4fd8', 'RIVAL']] },
+      legend: this.mode === 'chill'
+        ? { key: 'chill', items: [['#7affd6', 'TRAFFIC']] }
+        : this.mode === 'free'
+          ? { key: 'free', items: [['#5ef2ff', 'SHARD'], ['#ff4fd8', 'CORE'], ['#ff8844', 'GUARDED'], ['#ff3355', 'HOSTILE']] }
+          : { key: 'race', items: [['#b6ff3d', 'NEXT'], ['#5ef2ff', 'GATE'], ['#ff4fd8', 'RIVAL']] },
     });
   }
 
@@ -933,6 +1018,19 @@ class Game {
     this.state = 'over';
     input.releaseLock();
     const p = this.player;
+    if (this.mode === 'chill') {
+      hud.setAmbience(1);
+      hud.showResults(
+        { title: 'DRIFT ENDED', lines: [
+          ['TIME ADRIFT', fmtTime(this.runTime)],
+          ['CRAFT PASSED', this.drifters.seen ?? '—'],
+          ['FINAL SCORE', Math.round(p.score).toLocaleString(), 'total'],
+        ] },
+        () => this.start(this.cfg),
+        () => this.toHangar(),
+      );
+      return;
+    }
     const lines = this.mode === 'free'
       ? [
           ...(this.goal ? [['GOAL', `${Math.min(p.pickups, this.goal)} / ${this.goal} PICKUPS`]] : []),
@@ -978,6 +1076,7 @@ function fmtTime(t) {
 const game = new Game();
 hangar = new HangarStage(renderer);
 hangar.resize(innerWidth, innerHeight);
+hangar.attachControls(renderer.domElement);
 
 hud.muted = audio.muted;
 hud.onMuteChange = (m) => {
@@ -992,6 +1091,9 @@ hud.onRotate = (dir) => hangar.rotateModel(dir);
 hud.onPreview = (ship) => hangar.select(ship, (st) => hud.setPreviewState(st));
 
 function toHangar() {
+  audio.music(true, 'music');
+  hud.setAmbience(1);
+  hangar.setInteractive(true);
   game.state = 'menu';
   game.teardown();
   game.player = null;
@@ -1022,11 +1124,17 @@ function loop(now) {
   if (game.state === 'splash' || game.state === 'menu') {
     hangar.render(dt);
   } else {
-    if (game.state === 'play') {
-      game.update(dt);
-      game.renderHUD();
-    }
+    if (game.state === 'play') game.update(dt);
+    // Draw the world before the HUD, and never let an overlay error take the
+    // frame down with it — a broken gauge should not blank the game.
     if (game.player) renderer.render(scene, camera);
+    if (game.state === 'play') {
+      try {
+        game.renderHUD();
+      } catch (err) {
+        if (!game._hudErr) { game._hudErr = true; console.error('HUD render failed', err); }
+      }
+    }
   }
   input.endFrame();
 }

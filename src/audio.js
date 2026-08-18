@@ -11,6 +11,8 @@ export class Audio {
     this.muted = localStorage.getItem('nexusracer.muted.v2') === 'true';
     this.wantMusic = true;
     this.volume = 0.6;
+    this.musicVolume = 0.32;
+    this.track = 'music';
     this.bank = null;
   }
 
@@ -25,7 +27,7 @@ export class Audio {
 
       this.bank = new SoundBank(this.ctx, this.master);
       this.bank.load(import.meta.env.BASE_URL).then(() => {
-        if (!this.muted && this.wantMusic) this.bank.startMusic();
+        if (!this.muted && this.wantMusic) this.bank.startMusic(this.musicVolume, this.track);
       });
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -38,16 +40,18 @@ export class Audio {
     if (this.master) this.master.gain.value = m ? 0 : this.volume;
     if (this.bank) {
       if (m) this.bank.stopMusic();
-      else if (this.wantMusic) this.bank.startMusic();
+      else if (this.wantMusic) this.bank.startMusic(this.musicVolume, this.track);
     }
   }
 
   toggleMute() { this.ensure(); this.setMuted(!this.muted); return this.muted; }
 
-  music(on) {
+  /** @param track 'music' for the main theme pool, 'chillMusic' for the lofi set */
+  music(on, track = this.track) {
     this.wantMusic = on;
+    this.track = track;
     if (!this.bank) return;
-    if (on && !this.muted) this.bank.startMusic();
+    if (on && !this.muted) this.bank.startMusic(this.musicVolume, track);
     else this.bank.stopMusic();
   }
 
@@ -58,18 +62,22 @@ export class Audio {
 
   // ---- game events -------------------------------------------------------
   ui()            { this.play('ui', { volume: 0.5 }); }
-  shot(kind)      { this.play(kind === 'missile' ? 'missile' : 'shot',
-                              kind === 'missile' ? { volume: 0.5 } : { volume: 0.3, rate: 1.25 }); }
-  boom()          { this.play('boom', { volume: 0.7, rate: 0.85 }); }
-  pickup(big)     { this.play('pickup', { volume: big ? 0.7 : 0.42, rate: big ? 0.9 : 1.2 }); }
+  shot(kind) {
+    if (kind === 'missile') { this.play('missile', { volume: 0.5, minGap: 0.12, voices: 3 }); return; }
+    // Rapid fire: one clip per ~110ms with pitch spread, so a vulcan burst
+    // reads as a burst instead of a wall of overlapping copies of one sample.
+    this.play('shot', { volume: 0.3, rate: 1.25, jitter: 0.22, minGap: 0.11, voices: 3 });
+  }
+  boom()          { this.play('boom', { volume: 0.7, rate: 0.85, minGap: 0.07, voices: 4 }); }
+  pickup(big)     { this.play('pickup', { volume: big ? 0.7 : 0.42, rate: big ? 0.9 : 1.2, minGap: 0.05, voices: 5 }); }
   gate()          { this.play('gate', { volume: 0.5 }); }
-  hurt()          { this.play('hurt', { volume: 0.5 }); }
-  ability()       { this.play('boost', { volume: 0.5, rate: 1.1 }); }
+  hurt()          { this.play('hurt', { volume: 0.5, minGap: 0.35, voices: 2 }); }
+  ability()       { this.play('boost', { volume: 0.5, rate: 1.1, minGap: 0.3, voices: 2 }); }
   miss()          { this.play('hurt', { volume: 0.35, rate: 0.8 }); }
 
   /** Fires once on the rising edge of the boost input. */
   engine(speed01, boosting) {
-    if (boosting && !this._wasBoosting) this.play('boost', { volume: 0.55 });
+    if (boosting && !this._wasBoosting) this.play('boost', { volume: 0.55, minGap: 0.5, voices: 2 });
     this._wasBoosting = boosting;
   }
 }
