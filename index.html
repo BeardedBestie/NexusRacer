@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
 <title>NEXUS RACER — A Browser Flight Game</title>
 
 <!--
@@ -44,9 +44,14 @@
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;overflow:hidden;background:var(--bg0);color:var(--ink);
     font-family:"Rajdhani","Chakra Petch",ui-sans-serif,system-ui,"Segoe UI",sans-serif;
-    -webkit-font-smoothing:antialiased;}
-  /* scoped to the WebGL surface — the HUD has its own canvases */
-  #app canvas{display:block;position:fixed;inset:0}
+    -webkit-font-smoothing:antialiased;
+    /* stop the pull-to-refresh / rubber-band bounce behind the game */
+    overscroll-behavior:none;-webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;}
+  /* scoped to the WebGL surface — the HUD has its own canvases.
+     touch-action lives here rather than on <body> so the hangar's side panels
+     can still be scrolled with a finger. */
+  #app canvas{display:block;position:fixed;inset:0;touch-action:none}
   #ui{position:fixed;inset:0;pointer-events:none;z-index:10}
   .hidden{display:none !important}
 </style>

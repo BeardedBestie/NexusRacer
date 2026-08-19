@@ -20,6 +20,7 @@ Open the printed localhost URL. No build step, no backend, no external requests 
 
 - [What it is](#what-it-is)
 - [Controls](#controls)
+  - [On a phone](#on-a-phone)
 - [The fleet](#the-fleet)
 - [How it works](#how-it-works)
   - [Module map](#module-map)
@@ -57,7 +58,7 @@ the world is *for*.
 
 Free Range and Endless Circuit accept an optional goal (10 / 25 / 50 pickups or
 gates) or run forever. Assist level, mouse sensitivity and audio are set in the
-hangar dock.
+hangar dock, along with the steering mode on touch devices.
 
 The world is generated from a fixed seed, so the same mountain range is in the
 same place every session.
@@ -77,9 +78,37 @@ same place every session.
 | `R` | Signature ability |
 | `C` | Camera — chase / far / cockpit |
 | `M` | Mute · `Esc` pause |
+| `[` / `]` | Nudge the hull's model facing · `\` resets it to auto-detected |
 
 In the hangar: **click and drag the ship** to turn it over. Flick it and it keeps
-the momentum; the turntable creeps back once you leave it alone.
+the momentum; the turntable creeps back once you leave it alone. The **◀ / ▶**
+pill under the hull steps through the roster and wraps at both ends — on a phone
+the ship rail is off-screen, so that pill is the way through the fleet.
+
+### On a phone
+
+Touch builds swap the mouse and keyboard for an on-screen deck. Steering has two
+modes, set by the **Steering** chips in the hangar dock and remembered between
+sessions:
+
+| | |
+|---|---|
+| **Tilt** (default) | The gyroscope. Lean the handset to bank and dive. "Level" is however you were holding it at launch — **⊙** re-zeroes it any time. |
+| **Touch** | Put a finger down anywhere on the left of the glass and move it around. The stick springs up under it, and follows if you walk past the ring. |
+
+Both feed the same virtual stick the mouse drives, so the flight model and the
+reticle never know the difference. The rest of the deck: the **THR** rail on the
+left sets throttle, and **FIRE / MSL / ABL / BST / BRK** plus **TGT / CAM / ⊙ /
+❚❚** sit bottom-right.
+
+iOS only hands over the gyroscope from inside a user gesture, so the permission
+prompt rides on the tap that picked Tilt (or on Launch, if you never touched the
+option). If the handset has no gyro or the prompt is declined, it falls back to
+touch steering and says so.
+
+Detection needs **both** a coarse primary pointer and a touch digitiser, so a
+laptop with a touchscreen keeps mouse-and-keyboard and its pointer lock. Force
+the decision either way with `?touch=1` / `?touch=0`.
 
 ## The fleet
 
@@ -128,6 +157,8 @@ and extra lift, for handing to someone who has never flown before.
 | `src/environment.js` | Sky, sun, fog, water, clouds, sky-derived IBL |
 | `src/hangar.js` | Menu backdrop — the hangar bay diorama and ship preview |
 | `src/hud.js` | Splash, ship select, HUD, scanner, reticles, results |
+| `src/input.js` | Keyboard, mouse and pointer lock |
+| `src/touch.js` | On-screen thumb deck and gyroscope steering |
 | `src/audio.js` · `src/soundbank.js` | Sample playback, classification, music rotation |
 | `src/devgrid.js` | Dev-only model contact sheets |
 
@@ -196,6 +227,25 @@ over-corrected constantly.
   This was the actual missing piece: the control wasn't just mistuned, it was
   invisible.
 - Low / Normal / High sensitivity in the hangar, persisted
+
+Touch and tilt hang off the same stick, which is why they cost so little. Where
+the mouse contributes *deltas* that accumulate, both mobile sources are
+**absolute** — they write the stick's position directly, after the centring decay
+and only while a finger is down or the gyro is live. So a held finger or a held
+lean holds its bank exactly like a held mouse deflection, releasing hands the
+stick back to the same self-centring, and the dead zone, expo curve, crosshair
+feedback and sensitivity setting all apply unchanged.
+
+Tilt is read as **gravity in screen space** rather than raw `beta`/`gamma`: the
+device orientation is turned into a quaternion (the `DeviceOrientationControls`
+frame fix), inverted, and applied to world-down. Roll is `asin(g.x)` — how far
+gravity has moved toward the screen's right edge — and pitch is `asin(-g.z)` — how
+far the glass has tipped away from vertical. Two properties fall out of that: it
+works the same in portrait and landscape once `screen.orientation.angle` is folded
+in, and `alpha` cancels exactly (it is a rotation about the world vertical, which
+cannot move gravity), so a wandering magnetometer never shows up as drift. Both
+angles are measured against a pose captured at launch, so "level" is however you
+happen to be holding the handset.
 
 ### Combat and lock-on
 
@@ -338,16 +388,16 @@ overwritten, so the step is reversible and safe to re-run.
 | `/?grid=1&from=9&count=9&cols=3` | Paged contact sheet |
 | `/?grid=1&yaws=butter-rocket` | Renders one hull at all four cardinal yaws so the correct one can be read off directly, then pinned via `modelYaw` |
 
-`window.__game`, `window.__three` and `window.__audio` are exposed for console
-tuning.
+`window.__game`, `window.__three`, `window.__audio` and `window.__touch` are
+exposed for console tuning.
 
 ## Adding assets
 
 **Models** — drop a `.glb` in `public/models/`, add an entry to `SHIPS` in
 [`src/ships.js`](src/ships.js), then run `npm run optimize`. Orientation is
-auto-detected; override with `modelYaw`, or nudge it live with the hangar's
-*Model Facing* arrows (**⟲** resets to auto). An explicit `modelYaw` wins over a
-stale manual nudge. `sizeMult` scales one hull against the fleet.
+auto-detected; override with `modelYaw`, or nudge it live in flight with
+**`[`** / **`]`** (**`\`** resets to auto-detected). An explicit `modelYaw` wins
+over a stale manual nudge. `sizeMult` scales one hull against the fleet.
 
 **Sounds** — drop clips in `public/sound/` and run `npm run sounds` (also run by
 `npm run dev`). Classified by keyword: `bgmusic4`/`bgmusic5`/`lofi`/`chill` →
@@ -402,7 +452,9 @@ A few of these cost real time and have non-obvious causes.
 - Hull-relative camera shake and G-force effects on the cockpit view
 - Doppler and positional audio for passing craft (`PannerNode`)
 - Engine audio that responds continuously rather than on boost transitions
-- Controller support — the virtual stick maps naturally to an analogue stick
+- Controller support — the virtual stick maps naturally to an analogue stick, and
+  the touch layer already proves a third input source can feed it
+- Haptics on the touch deck (`navigator.vibrate`) for lock-on and gate hits
 
 **Technical**
 - KTX2 / Basis for textures (another ~2× over WebP, at the cost of shipping a

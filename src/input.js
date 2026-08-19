@@ -1,6 +1,11 @@
+import { IS_TOUCH } from './touch.js';
+
 export class Input {
   constructor(domElement) {
     this.dom = domElement;
+    // Pointer lock is meaningless on a touch device — and worse, the unlock
+    // callback would pause the game the moment a finger lifts.
+    this.usePointerLock = !IS_TOUCH;
     this.keys = new Set();
     this.mouseDX = 0; this.mouseDY = 0;
     this.buttons = new Set();
@@ -20,6 +25,9 @@ export class Input {
     addEventListener('blur', () => { this.keys.clear(); this.buttons.clear(); });
 
     domElement.addEventListener('mousedown', (e) => {
+      // A tap on a touchscreen also synthesises a left mousedown; letting that
+      // through would fire the primary every time a finger brushed the glass.
+      if (IS_TOUCH) return;
       this.buttons.add(e.button);
       if (!this.locked) this.requestLock();
     });
@@ -38,7 +46,7 @@ export class Input {
     });
   }
 
-  requestLock() { this.dom.requestPointerLock?.(); }
+  requestLock() { if (this.usePointerLock) this.dom.requestPointerLock?.(); }
   releaseLock() { document.exitPointerLock?.(); }
 
   down(code) { return this.keys.has(code); }

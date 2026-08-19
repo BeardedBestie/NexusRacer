@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { loadShipModel, nudgeOrientation, resetOrientation } from './ships.js';
+import { loadShipModel } from './ships.js';
 import { mulberry32 } from './noise.js';
 import { SHIP_LENGTH, HANGAR_SHIP_LENGTH } from './scale.js';
 
@@ -353,20 +353,17 @@ export class HangarStage {
     onState?.('ready');
   }
 
-  rotateModel(dir) {
-    if (!this.current) return;
-    if (dir === 0) resetOrientation(this.current);
-    else nudgeOrientation(this.current, dir * Math.PI / 2);
-  }
-
   resize(w, h) {
     const aspect = w / h;
     this.camera.aspect = aspect;
     // The ship shares the frame with two side panels, so pull back on narrow
     // viewports instead of letting the hull spill under the UI.
     const pull = THREE.MathUtils.clamp(1.7 / aspect, 1, 2.1);
+    // Portrait gives the lower half of the screen to the spec sheet, so aim
+    // below the hull to float it up into the part still on show.
+    const rise = aspect < 0.9 ? 12 * pull : 0;
     this.camera.position.set(0, 13 * pull, 80 * pull);
-    this.camera.lookAt(0, 2, 0);
+    this.camera.lookAt(0, 2 - rise, 0);
     this.camera.updateProjectionMatrix();
   }
 

@@ -1,4 +1,5 @@
 import { SHIPS, WEAPONS, resolveStats } from './ships.js';
+import { IS_TOUCH, STEER } from './touch.js';
 
 const GOALS = [
   { v: 0, l: 'Endless' }, { v: 10, l: '10' }, { v: 25, l: '25' }, { v: 50, l: '50' },
@@ -22,7 +23,7 @@ const CSS = `
    every interactive overlay has to opt back in. */
 #splash,#menu,#pause,#results,#loading{pointer-events:auto}
 #hud,#dmg,.scan,.vig{pointer-events:none}
-button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
+button,.chip,.tab,.slot,.navbtn{pointer-events:auto}
 
 .scan{position:absolute;inset:0;pointer-events:none;z-index:3;
   background:repeating-linear-gradient(to bottom,rgba(94,242,255,.03) 0 1px,transparent 1px 3px);
@@ -117,6 +118,7 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
 #menu .rail,#menu .specs{pointer-events:auto}
 #menu .viewport{pointer-events:none}
 #menu .viewport .foot,#menu .viewport .foot *{pointer-events:auto}
+#menu .viewport .ctl{pointer-events:none}
 
 .rail{padding:0 12px 12px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
 .rail::-webkit-scrollbar{width:5px}
@@ -164,12 +166,27 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
   text-shadow:0 0 14px color-mix(in srgb,var(--acc) 70%,transparent)}
 .viewport .blurb{max-width:480px;margin:8px auto 0;font-size:12.5px;color:#8ea6c6;line-height:1.5;
   font-style:italic;text-align:center}
-.viewport .foot{display:flex;align-items:center;gap:10px}
-.rotbtn{width:34px;height:30px;border:1px solid rgba(120,150,200,.3);background:rgba(8,14,32,.6);
-  color:#9db6d6;cursor:pointer;border-radius:2px;font-size:13px;font-family:inherit;transition:.13s}
-.rotbtn:hover{border-color:#5ef2ff;color:#e8f4ff}
-.rotlbl{font-size:10px;letter-spacing:.2em;color:#5b7a9c}
-.draghint{font-size:9.5px;letter-spacing:.2em;color:#44607f;margin-left:10px}
+/* Prev/next racer. This is the primary way to change hull on a phone, where
+   the rail is off-screen, so the targets stay thumb-sized at every width. */
+.viewport .ctl{display:flex;flex-direction:column;align-items:center}
+.viewport .foot{display:flex;align-items:center;gap:14px;
+  padding:7px 9px;border:1px solid rgba(120,150,200,.24);border-radius:99px;
+  /* Sits over the hull on a phone, so it needs a real ground, not a tint. */
+  background:rgba(4,8,20,.84);backdrop-filter:blur(6px);
+  box-shadow:0 6px 24px rgba(0,0,0,.45)}
+.navbtn{width:46px;height:46px;border:1px solid color-mix(in srgb,var(--acc) 55%,transparent);
+  background:color-mix(in srgb,var(--acc) 12%,rgba(8,14,32,.7));color:#e8f4ff;cursor:pointer;
+  border-radius:50%;font-size:16px;line-height:1;font-family:inherit;transition:.13s;
+  display:flex;align-items:center;justify-content:center;padding:0;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.navbtn:hover{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 28%,transparent);
+  box-shadow:0 0 20px color-mix(in srgb,var(--acc) 40%,transparent)}
+.navbtn:active{transform:scale(.93)}
+.navlbl{text-align:center;min-width:78px;pointer-events:none}
+.navlbl .cnt{font-size:14px;letter-spacing:.1em;color:#7f97b8;font-family:ui-monospace,monospace}
+.navlbl .cnt b{color:var(--acc);font-size:17px}
+.navlbl .cap{font-size:9px;letter-spacing:.3em;color:#5b7a9c;margin-top:2px;text-transform:uppercase}
+.draghint{font-size:9.5px;letter-spacing:.2em;color:#44607f;margin-top:8px}
 .loadchip{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   font-size:11px;letter-spacing:.3em;color:#5ef2ff;pointer-events:none}
 .loadchip::after{content:'';display:block;width:120px;height:2px;margin-top:10px;
@@ -300,17 +317,101 @@ button,.chip,.tab,.slot,.rotbtn{pointer-events:auto}
   .specs{display:none}
   .keys{display:none}
 }
+/* Phone width: the rail is gone, so the viewport's prev/next is the only way
+   through the roster — and the spec sheet folds back in underneath the hull so
+   picking a racer blind is not the price of a small screen. */
 @media (max-width:620px){
-  .stage{grid-template-columns:1fr}
+  .stage{grid-template-columns:1fr;grid-template-rows:minmax(150px,1fr) auto}
   .rail{display:none}
-  .dock{gap:12px;padding:10px 14px 14px}
-  .topbar{padding:10px 14px;gap:12px}
+  /* The hangar canvas runs the full height behind the menu, so the spec sheet
+     needs its own ground once it sits on top of the hull rather than beside it. */
+  .specs{display:flex;padding:8px 14px 10px;gap:7px;max-height:26vh;
+    background:linear-gradient(180deg,rgba(4,8,20,.96),rgba(5,9,22,.99));
+    border-top:1px solid rgba(94,242,255,.16)}
+  .specs h3{padding-top:0;font-size:9px}
+  .dock{gap:8px 10px;padding:8px 12px 12px}
+  .opt{gap:6px}
+  /* Chips and tabs are the only hit targets left in the dock, so they keep a
+     fingertip's worth of height even as the type shrinks. */
+  .chip{padding:7px 12px;font-size:11px}
+  .topbar{padding:8px 12px;gap:10px}
+  .topbar .mark{height:26px}
+  .topbar .tabs{flex-wrap:wrap;gap:5px}
+  .tab{padding:8px 11px;font-size:10.5px;letter-spacing:.1em}
+  .viewport{padding:4px 0 10px}
+  /* The hint would otherwise land on the spec sheet's top edge; put it above
+     the pill instead of below it. */
+  .viewport .ctl{flex-direction:column-reverse}
+  .draghint{margin:0 0 7px}
+  .viewport .title .nm{font-size:clamp(22px,7.2vw,38px)}
+  .viewport .title .kl{font-size:10px;letter-spacing:.34em}
+  /* The steering line is the one thing a first-time mobile player cannot read
+     off the deck itself, so it stays; the labelled keys explain themselves and
+     the pause screen carries the full legend. */
+  .keys{display:block;font-size:9.5px;line-height:1.55;max-width:100%}
+  .keys .deckline{display:none}
+}
+/* Landscape on a handset: height is the scarce axis. Keep the hull big, let the
+   dock scroll rather than shove the launch button off the bottom. */
+@media (orientation:landscape) and (max-height:560px){
+  .stage{grid-template-columns:1fr;grid-template-rows:1fr}
+  .rail,.specs,.keys{display:none}
+  .topbar{padding:6px 12px}
+  .topbar .mark{height:30px}
+  .viewport{padding:2px 0 8px}
+  .viewport .title .nm{font-size:clamp(20px,4.4vw,34px)}
+  .viewport .foot{gap:10px;padding:5px 7px}
+  .navbtn{width:42px;height:42px}
+  .dock{padding:6px 12px 10px;gap:10px;max-height:34vh;overflow-y:auto}
+  .draghint{display:none}
+}
+
+/* ================= ON-SCREEN CONTROLS (touch builds) =================
+   The thumb deck owns the bottom corners, so the instruments move clear of it
+   and everything shrinks a step. Driven by a class main.js sets, not a media
+   query, because it tracks whether the deck is actually on screen. */
+#ui.touch .hcorner{padding:9px 11px}
+#ui.touch .big{font-size:24px}
+#ui.touch #hRadar{left:calc(12px + env(safe-area-inset-left));
+  top:calc(10px + env(safe-area-inset-top));padding:8px}
+#ui.touch #hRadar canvas{width:118px;height:118px}
+#ui.touch #hRadar.shift{top:calc(148px + env(safe-area-inset-top))}
+#ui.touch #hRadar .rlegend{font-size:8px;gap:6px;margin-top:5px}
+#ui.touch #hBoard{left:calc(12px + env(safe-area-inset-left));
+  top:calc(10px + env(safe-area-inset-top));min-width:150px;font-size:11px}
+#ui.touch #hScore{right:calc(12px + env(safe-area-inset-right));
+  top:calc(10px + env(safe-area-inset-top))}
+#ui.touch #hRight{right:calc(12px + env(safe-area-inset-right));bottom:auto;
+  top:calc(86px + env(safe-area-inset-top));min-width:0;max-width:44vw}
+#ui.touch #hGoal{bottom:auto;top:calc(96px + env(safe-area-inset-top));min-width:170px}
+#ui.touch #hLeft{left:calc(12px + env(safe-area-inset-left));
+  bottom:calc(204px + env(safe-area-inset-bottom));min-width:172px}
+@media (orientation:portrait){
+  /* The scanner legend is what makes that panel wide; wrapping it keeps the
+     panel off the score readout on a 390px-wide handset. */
+  #ui.touch #hRadar .rlegend{flex-wrap:wrap;max-width:126px}
+  /* Portrait stacks the scanner over the altimeter, so the mission banner has to
+     drop below both. */
+  #ui.touch #hTop{top:calc(226px + env(safe-area-inset-top));min-width:0;max-width:92vw}
+  #ui.touch #hGoal{top:calc(318px + env(safe-area-inset-top))}
+  /* The key deck wraps to three rows here, so the instruments lift clear of it. */
+  #ui.touch #hLeft{bottom:calc(248px + env(safe-area-inset-bottom))}
+}
+@media (orientation:landscape) and (max-height:560px){
+  /* Tuck the instruments into the gap between the throttle rail and the key
+     deck instead of stacking above the rail, which would run off the top. */
+  #ui.touch #hLeft{left:calc(82px + env(safe-area-inset-left));
+    bottom:calc(14px + env(safe-area-inset-bottom));min-width:0;max-width:34vw}
+  #ui.touch #hRadar canvas{width:96px;height:96px}
+  #ui.touch #hRadar.shift{top:calc(126px + env(safe-area-inset-top))}
 }
 `;
 
 export class HUD {
   constructor(root) {
     this.root = root;
+    // Everything the on-screen deck displaces is repositioned off this class.
+    if (IS_TOUCH) root.classList.add('touch');
     const style = document.createElement('style');
     style.textContent = CSS;
     document.head.appendChild(style);
@@ -379,6 +480,7 @@ export class HUD {
     this.goal = 0;
     this.muted = false;
     this.sens = Number(localStorage.getItem('nexusracer.sens') || 1);
+    this.steer = localStorage.getItem('nexusracer.steer') === STEER.TOUCH ? STEER.TOUCH : STEER.TILT;
     this.previewState = 'ready';
   }
 
@@ -395,7 +497,7 @@ export class HUD {
       <div class="rule"></div>
       <div class="sub">${SHIPS.length} CRAFT · ENDLESS PROCEDURAL WORLD · THREE WAYS TO FLY</div>
       <div class="cta"><button class="btn" id="enter">Enter Hangar</button></div>
-      <div class="hint">PRESS ENTER</div>
+      <div class="hint">${IS_TOUCH ? 'TAP TO BEGIN' : 'PRESS ENTER'}</div>
       <div class="credits">
         <div class="by">Created by
           <a href="https://www.linkedin.com/in/beardedbestie" target="_blank" rel="noopener">Grant Walker</a>
@@ -443,6 +545,32 @@ export class HUD {
 
   ship() { return SHIPS.find((s) => s.id === this.selectedShip); }
 
+  /** Select by id — the rail's slots and the viewport's prev/next share this. */
+  pickShip(id) {
+    if (id === this.selectedShip) return;
+    this.selectedShip = id;
+    this.onUi?.();
+    this._renderMenu();
+    this.onPreview?.(this.ship());
+  }
+
+  /** Force the steering mode in from outside, e.g. when tilt turns out dead. */
+  setSteer(mode) {
+    this.steer = mode;
+    if (!this.menu.classList.contains('hidden')) this._renderMenu();
+  }
+
+  /**
+   * Walk the roster by one, wrapping at both ends. This is the only way to
+   * change hull once the screen is too narrow for the rail, so it must never
+   * dead-end at the first or last slot.
+   */
+  stepShip(dir) {
+    const i = SHIPS.findIndex((s) => s.id === this.selectedShip);
+    const n = SHIPS.length;
+    this.pickShip(SHIPS[(((i + dir) % n) + n) % n].id);
+  }
+
   setPreviewState(s) {
     this.previewState = s;
     const chip = this.menu.querySelector('.loadchip');
@@ -459,6 +587,7 @@ export class HUD {
     const specScroll = this.menu.querySelector('.specs')?.scrollTop ?? 0;
 
     const ship = this.ship();
+    const shipIdx = SHIPS.findIndex((s) => s.id === ship.id);
     const st = resolveStats(ship);
     const pw = WEAPONS[ship.primary], sw = WEAPONS[ship.secondary];
     const race = this.selectedMode === 'race';
@@ -498,12 +627,16 @@ export class HUD {
             <div class="blurb">${ship.blurb}</div>
           </div>
           <div class="loadchip" style="display:${this.previewState === 'loading' ? '' : 'none'}">LOADING HULL</div>
-          <div class="foot">
-            <button class="rotbtn" data-rot="-1">◀</button>
-            <div class="rotlbl">MODEL FACING</div>
-            <button class="rotbtn" data-rot="1">▶</button>
-            <button class="rotbtn" data-rot="0" title="Reset to auto-detected facing">⟲</button>
-            <div class="draghint">DRAG TO TURN</div>
+          <div class="ctl">
+            <div class="foot">
+              <button class="navbtn" data-step="-1" aria-label="Previous racer">◀</button>
+              <div class="navlbl">
+                <div class="cnt"><b>${String(shipIdx + 1).padStart(2, '0')}</b> / ${String(SHIPS.length).padStart(2, '0')}</div>
+                <div class="cap">Racer</div>
+              </div>
+              <button class="navbtn" data-step="1" aria-label="Next racer">▶</button>
+            </div>
+            <div class="draghint">Drag the hull to turn it</div>
           </div>
         </div>
 
@@ -547,7 +680,12 @@ export class HUD {
           <div class="chip ${this.assist === 'assisted' ? 'sel' : ''}" data-assist="assisted">Assisted</div>
           <div class="chip ${this.assist === 'standard' ? 'sel' : ''}" data-assist="standard">Standard</div>
         </div></div>
-        <div class="opt"><div class="lb">MOUSE</div><div class="chips">
+        ${IS_TOUCH ? `
+        <div class="opt"><div class="lb">STEERING</div><div class="chips">
+          <div class="chip ${this.steer === STEER.TILT ? 'sel' : ''}" data-steer="${STEER.TILT}">Tilt</div>
+          <div class="chip ${this.steer === STEER.TOUCH ? 'sel' : ''}" data-steer="${STEER.TOUCH}">Touch</div>
+        </div></div>` : ''}
+        <div class="opt"><div class="lb">${IS_TOUCH ? 'SENS' : 'MOUSE'}</div><div class="chips">
           ${SENS.map((x) => `<div class="chip ${this.sens === x.v ? 'sel' : ''}" data-sens="${x.v}">${x.l}</div>`).join('')}
         </div></div>
         <div class="opt"><div class="lb">AUDIO</div><div class="chips">
@@ -555,12 +693,20 @@ export class HUD {
           <div class="chip ${this.muted ? '' : 'sel'}" data-mute="0">On</div>
         </div></div>
         <div class="spacer"></div>
-        <div class="keys">
+        <div class="keys">${IS_TOUCH ? `
+          <div class="steerline"><b>${this.steer === STEER.TOUCH ? 'FINGER' : 'TILT'}</b> ${this.steer === STEER.TOUCH
+            ? 'hold anywhere on the left and move around to steer'
+            : 'lean the handset to bank and dive — tap ⊙ to re-zero'}</div>
+          <div class="deckline">
+            <b>THR</b> rail sets throttle · <b>BST</b> boost · <b>BRK</b> brake<br>
+            <b>FIRE</b> primary · <b>MSL</b> secondary · <b>ABL</b> ability · <b>TGT</b> target · <b>CAM</b> camera
+          </div>
+        ` : `
           <b>MOUSE</b> virtual stick — holds its bank, so lean into a turn · <b>X</b> recentre<br>
           <b>W/S</b> throttle · <b>A/D</b> roll · <b>Q/E</b> rudder · <b>SHIFT</b> boost · <b>CTRL</b> brake<br>
           <b>LMB</b> primary · <b>RMB/F</b> secondary · <b>R</b> ability · <b>C</b> camera ·
           <b>T</b> cycle target · <b>M</b> mute · <b>ESC</b> pause
-        </div>
+        `}</div>
         <button class="btn" id="launch" ${this.previewState === 'loading' ? 'disabled' : ''}>Launch ▸</button>
       </div>
     `;
@@ -577,14 +723,9 @@ export class HUD {
       this._renderMenu();
     });
     q('[data-mute]', (n) => { this.muted = n.dataset.mute === '1'; this.onMuteChange?.(this.muted); this._renderMenu(); });
-    q('[data-rot]', (n) => this.onRotate?.(Number(n.dataset.rot)));
-    q('[data-ship]', (n) => {
-      if (n.dataset.ship === this.selectedShip) return;
-      this.selectedShip = n.dataset.ship;
-      this.onUi?.();
-      this._renderMenu();
-      this.onPreview?.(this.ship());
-    });
+    q('[data-step]', (n) => this.stepShip(Number(n.dataset.step)));
+    q('[data-steer]', (n) => { this.steer = n.dataset.steer; this.onSteer?.(this.steer); this._renderMenu(); });
+    q('[data-ship]', (n) => this.pickShip(n.dataset.ship));
     const rail = this.menu.querySelector('.rail');
     if (rail) rail.scrollTop = railScroll;
     const specs = this.menu.querySelector('.specs');
@@ -987,10 +1128,15 @@ export class HUD {
         <button class="btn" id="res">Resume</button>
         <button class="btn ghost" id="men">Hangar</button>
       </div>
-      <div style="font-size:11.5px;color:#6d84a5;max-width:440px;text-align:center;line-height:1.7">
+      <div style="font-size:11.5px;color:#6d84a5;max-width:440px;text-align:center;line-height:1.7">${IS_TOUCH ? `
+        ${this.steer === STEER.TOUCH
+          ? 'FINGER hold anywhere on the left of the glass and move around to steer'
+          : 'TILT lean the handset to bank and dive'} · ⊙ re-zeroes the steering<br>
+        THR rail sets throttle · BST boost · BRK brake<br>
+        FIRE primary · MSL secondary · ABL ability · TGT target · CAM camera` : `
         MOUSE virtual stick (holds its bank) · X recentre · W/S throttle · A/D roll · Q/E rudder<br>
         SHIFT boost · CTRL brake<br>
-        LMB primary · RMB/F secondary · R ability · T cycle target · C camera · M mute</div>`;
+        LMB primary · RMB/F secondary · R ability · T cycle target · C camera · M mute`}</div>`;
     this.root.appendChild(wrap);
     wrap.querySelector('#res').onclick = () => { wrap.remove(); onResume(); };
     wrap.querySelector('#men').onclick = () => { wrap.remove(); onMenu(); };

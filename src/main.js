@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { HeightField, TerrainStreamer } from './terrain.js';
 import { Environment } from './environment.js';
-import { SHIPS_BY_ID, resolveStats, loadShipModel, nudgeOrientation, pickEnemyShips, WEAPONS } from './ships.js';
+import { SHIPS_BY_ID, resolveStats, loadShipModel, nudgeOrientation, resetOrientation, pickEnemyShips, WEAPONS } from './ships.js';
 import { FlightModel, ASSIST } from './flight.js';
 import { CombatSystem, Loadout } from './weapons.js';
 import { CollectibleField, DroneSwarm, PICKUP } from './world.js';
 import { Drifters } from './drifters.js';
 import { Track, GateField, AIRacer, RACER_ROSTER, NODE_SPACING, GATE_RADIUS } from './race.js';
 import { Input } from './input.js';
+import { TouchControls, IS_TOUCH, STEER } from './touch.js';
 import { HUD } from './hud.js';
 import { HangarStage } from './hangar.js';
 import {
@@ -24,6 +25,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 const DEAD_ZONE = 0.07;
 const HUD_FADE_SECONDS = 60;
 const _aim = new THREE.Vector3();
+const _touchAxes = { x: 0, y: 0 };
 const _proj = new THREE.Vector3();
 
 // ---------------------------------------------------------------------------
@@ -71,6 +73,7 @@ addEventListener('resize', () => {
 const hud = new HUD(document.getElementById('ui'));
 let hangar = null;
 const input = new Input(renderer.domElement);
+const touch = new TouchControls(document.getElementById('ui'));
 const audio = new Audio();
 
 const WORLD_SEED = 20250817;
@@ -227,6 +230,13 @@ class Game {
     this.time = 0;
     audio.ensure();
     input.requestLock();
+    if (IS_TOUCH) {
+      // Zero the tilt to however the handset is being held at the moment of
+      // launch, so "level" is wherever the player is comfortable.
+      touch.recentre();
+      touch.throttleSet = null;
+      touch.setVisible(true);
+    }
   }
 
   _setupFree(hulls = []) {
@@ -324,6 +334,16 @@ class Game {
     this.stick.x *= centre;
     this.stick.y *= centre;
 
+    // Touch and tilt are absolute, not incremental: the stick sits wherever the
+    // finger or the handset is pointing right now. Applied after the centring
+    // decay so a held deflection stays put, and left alone when nothing is
+    // driving them, which lets the decay level the ship out on release.
+    if (touch.active) {
+      const t = touch.axes(_touchAxes);
+      this.stick.x = t.x;
+      this.stick.y = t.y;
+    }
+
     const kPitch = input.axis('ArrowUp', 'ArrowDown');
     const kRoll = input.axis('KeyA', 'KeyD');
     const kYaw = input.axis('KeyQ', 'KeyE');
@@ -346,15 +366,22 @@ class Game {
 
     // --- throttle ---------------------------------------------------------
     const th = input.axis('KeyS', 'KeyW');
+    if (th) touch.throttleSet = null;         // the keyboard takes the rail back
     f.throttle = THREE.MathUtils.clamp(f.throttle + th * dt * 1.15, 0, 1);
-    f.wantBoost = input.down('ShiftLeft') || input.down('ShiftRight');
-    f.braking = input.down('ControlLeft') || input.down('ControlRight');
+    if (touch.throttleSet !== null) {
+      // The rail is an absolute demand, but easing into it keeps the engine
+      // note from snapping when a thumb jumps across the strip.
+      f.throttle += (touch.throttleSet - f.throttle) * (1 - Math.exp(-dt * 9));
+    }
+    touch.setThrottleReadout(f.throttle);
+    f.wantBoost = input.down('ShiftLeft') || input.down('ShiftRight') || touch.boost;
+    f.braking = input.down('ControlLeft') || input.down('ControlRight') || touch.brake;
 
     // --- weapons ----------------------------------------------------------
     const lo = p.loadout;
     lo.update(dt);
-    const wantPrimary = input.mouse(0) || input.down('Space');
-    const wantSecondary = input.mouse(2) || input.down('KeyF');
+    const wantPrimary = input.mouse(0) || input.down('Space') || touch.primary;
+    const wantSecondary = input.mouse(2) || input.down('KeyF') || touch.secondary;
 
     f.forward(_v);
     const muzzle = _v2.copy(f.position).addScaledVector(_v, MUZZLE_FWD);
@@ -391,10 +418,16 @@ class Game {
     }
 
     // --- ability ----------------------------------------------------------
-    if (input.pressed('KeyR') && p.abilityCd <= 0) this.triggerAbility();
+    if ((input.pressed('KeyR') || touch.tapped('ability')) && p.abilityCd <= 0) this.triggerAbility();
 
-    if (input.pressed('KeyT')) this.cycleLock(_v);
-    if (input.pressed('KeyC')) this.camMode = (this.camMode + 1) % 3;
+    if (input.pressed('KeyT') || touch.tapped('target')) this.cycleLock(_v);
+    if (input.pressed('KeyC') || touch.tapped('camera')) this.camMode = (this.camMode + 1) % 3;
+    if (touch.tapped('recentre')) {
+      touch.recentre();
+      this.stick.x = 0; this.stick.y = 0;
+      hud.toast('CONTROLS ZEROED', '#5ef2ff', 700);
+    }
+    if (touch.tapped('pause')) { this.pause(); return; }
     if (input.pressed('KeyM')) {
       const m = audio.toggleMute();
       hud.muted = m;
@@ -402,6 +435,7 @@ class Game {
     }
     if (input.pressed('BracketLeft')) nudgeOrientation(this.playerModel, -Math.PI / 2);
     if (input.pressed('BracketRight')) nudgeOrientation(this.playerModel, Math.PI / 2);
+    if (input.pressed('Backslash')) resetOrientation(this.playerModel);
   }
 
   /**
@@ -1024,6 +1058,7 @@ class Game {
     if (this.state !== 'play') return;
     this.state = 'over';
     input.releaseLock();
+    touch.setVisible(false);
     const p = this.player;
     if (this.mode === 'chill') {
       hud.setAmbience(1);
@@ -1067,8 +1102,13 @@ class Game {
     if (this.state !== 'play') return;
     this.state = 'paused';
     input.releaseLock();
+    touch.setVisible(false);
     hud.showPause(
-      () => { this.state = 'play'; input.requestLock(); },
+      () => {
+        this.state = 'play';
+        input.requestLock();
+        if (IS_TOUCH) { touch.recentre(); touch.setVisible(true); }
+      },
       () => this.toHangar(),
     );
   }
@@ -1092,10 +1132,28 @@ hud.onMuteChange = (m) => {
   audio.music(!m);
 };
 hud.onUi = () => audio.ui();
-hud.onSens = (v) => { input.sensitivity = v; };
+hud.onSens = (v) => { input.sensitivity = v; touch.sensitivity = v; };
 input.sensitivity = hud.sens;
-hud.onRotate = (dir) => hangar.rotateModel(dir);
+touch.sensitivity = hud.sens;
+touch.onFeedback = () => audio.ui();
 hud.onPreview = (ship) => hangar.select(ship, (st) => hud.setPreviewState(st));
+
+/**
+ * Tilt steering needs the sensor, and iOS only hands it over from inside a
+ * gesture — so the ask rides on the tap that picked the mode. If the handset
+ * turns out to have no gyro, or the prompt is declined, quietly fall back to
+ * the on-screen stick rather than launching with dead controls.
+ */
+async function useSteering(mode) {
+  touch.setMode(mode);
+  if (mode !== STEER.TILT) return;
+  const live = await touch.enableGyro();
+  if (live) return;
+  touch.setMode(STEER.TOUCH);
+  hud.setSteer(STEER.TOUCH);
+  hud.toast('NO TILT SENSOR — TOUCH STEERING', '#ffb347', 1800);
+}
+hud.onSteer = (mode) => { audio.ui(); useSteering(mode); };
 
 function toHangar() {
   audio.music(true, 'music');
@@ -1104,7 +1162,13 @@ function toHangar() {
   game.state = 'menu';
   game.teardown();
   game.player = null;
-  hud.showMenu((cfg) => game.start(cfg));
+  touch.setVisible(false);
+  hud.showMenu((cfg) => {
+    // Same gesture-bound ask as the steering chip, for players who never
+    // touched the option and are launching on the default.
+    if (IS_TOUCH && hud.steer === STEER.TILT && !touch.gyroLive) useSteering(STEER.TILT);
+    game.start(cfg);
+  });
 }
 game.toHangar = toHangar;
 
@@ -1144,6 +1208,7 @@ function loop(now) {
     }
   }
   input.endFrame();
+  touch.endFrame();
 }
 requestAnimationFrame(loop);
 
@@ -1151,3 +1216,4 @@ requestAnimationFrame(loop);
 window.__game = game;
 window.__three = THREE;
 window.__audio = audio;
+window.__touch = touch;
