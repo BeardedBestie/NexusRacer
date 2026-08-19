@@ -16,7 +16,7 @@ function faceAlong(mesh, dir, dt) {
 }
 
 /**
- * Ambient traffic for Chill Vibes.
+ * Ambient traffic for Chill mode.
  *
  * Everything shares one slowly wandering "traffic heading", so the sky reads as
  * a loose migration rather than random noise — but each ship carries its own

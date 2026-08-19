@@ -29,7 +29,7 @@ Open the printed localhost URL. No build step, no backend, no external requests 
   - [The virtual stick](#the-virtual-stick)
   - [Combat and lock-on](#combat-and-lock-on)
   - [Garrisons, not roamers](#garrisons-not-roamers)
-  - [Chill Vibes](#chill-vibes)
+  - [Chill mode](#chill-mode)
   - [World scale and optics](#world-scale-and-optics)
   - [Model orientation](#model-orientation)
   - [Audio](#audio)
@@ -52,13 +52,14 @@ the world is *for*.
 
 | Mode | The loop |
 |---|---|
-| **Free Range** | Endless procedural world. Loot comes in rare **sites** — clusters you fly out and find — and the richest ones are **garrisoned**. Long quiet stretches punctuated by fights you choose to pick. |
-| **Endless Circuit** | An infinite procedurally-generated gate track against five AI rivals. Gates buy you time; the clock is the only thing that ends the run. Weapons are legal. |
-| **Chill Vibes** | No hostiles, no objectives, no clock, and nothing can end the run. Solitary pilots drift past on a shared heading and say hello. The HUD dissolves over a minute until only your marker and theirs remain. |
+| **Open** | Endless procedural world. Loot comes in rare **sites** — clusters you fly out and find — and the richest ones are **garrisoned**. Long quiet stretches punctuated by fights you choose to pick. |
+| **Ring Race** | An infinite procedurally-generated gate track against five AI rivals. Gates buy you time; the clock is the only thing that ends the run. Weapons are legal. |
+| **Chill** | No hostiles, no objectives, no clock, and nothing can end the run. Solitary pilots drift past on a shared heading and say hello. The HUD dissolves over a minute until only your marker and theirs remain. |
 
-Free Range and Endless Circuit accept an optional goal (10 / 25 / 50 pickups or
-gates) or run forever. Assist level, mouse sensitivity and audio are set in the
-hangar dock, along with the steering mode on touch devices.
+Open and Ring Race accept an optional goal (10 / 25 / 50 pickups or gates) or run
+forever. Goal, assist level, sensitivity, audio and — on touch devices — the
+steering mode all live behind the **gear** in the hangar dock, which keeps the
+dock itself down to two controls so the hull gets the screen.
 
 The world is generated from a fixed seed, so the same mountain range is in the
 same place every session.
@@ -84,6 +85,13 @@ In the hangar: **click and drag the ship** to turn it over. Flick it and it keep
 the momentum; the turntable creeps back once you leave it alone. The **◀ / ▶**
 pill under the hull steps through the roster and wraps at both ends — on a phone
 the ship rail is off-screen, so that pill is the way through the fleet.
+
+Every hull is warmed in roster order in the background from the moment the splash
+appears, so picking one is instant rather than a download. It runs one fetch at a
+time and parks itself whenever the player is waiting on something else; the
+hairline along the bottom of the hangar tracks it and retires when the last hull
+lands. The model cache keys on the *promise*, not the result, so a preload already
+in flight and a selection asking for the same hull share one fetch.
 
 ### On a phone
 
@@ -152,7 +160,7 @@ and extra lift, for handing to someone who has never flown before.
 | `src/weapons.js` | Projectiles, missiles, beams, explosions, loadout state |
 | `src/world.js` | Deterministic collectible sites, garrison AI |
 | `src/race.js` | Endless track spline, gates, AI racers |
-| `src/drifters.js` | Chill Vibes ambient traffic |
+| `src/drifters.js` | Chill mode ambient traffic |
 | `src/greetings.js` | 50 pilot hail lines and 20 callsigns |
 | `src/environment.js` | Sky, sun, fog, water, clouds, sky-derived IBL |
 | `src/hangar.js` | Menu backdrop — the hangar bay diorama and ship preview |
@@ -271,7 +279,7 @@ patrols a slow orbit, wakes only when you come within 4.2 km, and is leashed to
 site still has loot worth guarding. The result is the rhythm the game wanted:
 long stretches of flying, then a fight you flew toward on purpose.
 
-### Chill Vibes
+### Chill mode
 
 Everything hostile is switched off, and a terrain scrape bounces you back up
 instead of wrecking you — nothing ends the run.
@@ -333,7 +341,7 @@ Two details worth noting:
 
 - **Music rotates.** Each track plays to the end, then the next in a reshuffled
   order takes over, and a restart never opens on the track it just played.
-  Chill Vibes has its own pool.
+  Chill mode has its own pool.
 - **Rapid fire is gated.** A vulcan asks for a sample every 55 ms, which phases
   into mud and stacks gain until it clips. Guns fire one clip per 110 ms with
   ±22% pitch spread, capped at three concurrent voices, and each extra voice is
@@ -401,7 +409,7 @@ over a stale manual nudge. `sizeMult` scales one hull against the fleet.
 
 **Sounds** — drop clips in `public/sound/` and run `npm run sounds` (also run by
 `npm run dev`). Classified by keyword: `bgmusic4`/`bgmusic5`/`lofi`/`chill` →
-Chill Vibes pool, `bgmusic*`/`music` → main theme pool, then `boost`,
+Chill pool, `bgmusic*`/`music` → main theme pool, then `boost`,
 `whoosh`/`gate`, `laser`/`shot`, `missile`, `explosion`, `pickup`/`ring`,
 `hurt`, `ui`. Anything unrecognised is spread across the events that most need a
 clip. The script also renames files containing URL-hostile characters like `#` —

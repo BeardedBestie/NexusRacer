@@ -1,4 +1,4 @@
-// Flavour lines for passing pilots in Chill Vibes. Uniformly warm, deliberately
+// Flavour lines for passing pilots in Chill mode. Uniformly warm, deliberately
 // varied in register — some chatty, some clipped radio-speak, some odd.
 
 export const CALLSIGNS = [

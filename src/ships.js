@@ -403,48 +403,91 @@ function detectForwardYaw(root, box, size) {
  * Loads a ship GLB, centres it, scales it to TARGET_LEN and orients its
  * longest horizontal axis down -Z (forward).  Returns a fresh Group each call.
  */
-export async function loadShipModel(ship, onProgress) {
+/**
+ * Fetch, normalise and cache one hull. The cache holds the *promise*, not the
+ * result, so a preload already in flight and a selection asking for the same
+ * hull share the one fetch instead of racing to download it twice.
+ */
+function loadBase(ship, onProgress) {
   const cacheKey = ship.cacheKey ?? ship.id;
-  let base = cache.get(cacheKey);
-  if (!base) {
-    const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}models/${ship.file}`, onProgress);
-    const root = gltf.scene;
-
-    root.traverse((o) => {
-      if (o.isMesh) {
-        o.castShadow = false;
-        o.receiveShadow = false;
-        const m = o.material;
-        if (m) {
-          m.side = THREE.FrontSide;
-          if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
-          if ('metalness' in m) m.metalness = Math.min(m.metalness ?? 0.2, 0.45);
-          if ('roughness' in m) m.roughness = Math.max(m.roughness ?? 0.6, 0.35);
-          if ('envMapIntensity' in m) m.envMapIntensity = 1.1;
-        }
-      }
-    });
-
-    // Normalise: centre + scale + auto-orient
-    const box = new THREE.Box3().setFromObject(root);
-    const size = new THREE.Vector3(); box.getSize(size);
-    const center = new THREE.Vector3(); box.getCenter(center);
-    root.position.sub(center);
-
-    const holder = new THREE.Group();
-    holder.add(root);
-    const yaw = ship.modelYaw !== undefined
-      ? ship.modelYaw
-      : detectForwardYaw(root, box, size);
-    holder.rotation.y = yaw;
-
-    const longest = Math.max(size.x, size.z);
-    const scale = (TARGET_LEN * (ship.sizeMult ?? 1)) / Math.max(longest, 0.001);
-    holder.scale.setScalar(scale);
-
-    base = { holder, autoYaw: yaw, size, scale };
-    cache.set(cacheKey, base);
+  let pending = cache.get(cacheKey);
+  if (!pending) {
+    pending = buildBase(ship, onProgress);
+    // A failed fetch must not be cached as permanent — let the next ask retry.
+    pending.catch(() => cache.delete(cacheKey));
+    cache.set(cacheKey, pending);
   }
+  return pending;
+}
+
+async function buildBase(ship, onProgress) {
+  const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}models/${ship.file}`, onProgress);
+  const root = gltf.scene;
+
+  root.traverse((o) => {
+    if (o.isMesh) {
+      o.castShadow = false;
+      o.receiveShadow = false;
+      const m = o.material;
+      if (m) {
+        m.side = THREE.FrontSide;
+        if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+        if ('metalness' in m) m.metalness = Math.min(m.metalness ?? 0.2, 0.45);
+        if ('roughness' in m) m.roughness = Math.max(m.roughness ?? 0.6, 0.35);
+        if ('envMapIntensity' in m) m.envMapIntensity = 1.1;
+      }
+    }
+  });
+
+  // Normalise: centre + scale + auto-orient
+  const box = new THREE.Box3().setFromObject(root);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const center = new THREE.Vector3(); box.getCenter(center);
+  root.position.sub(center);
+
+  const holder = new THREE.Group();
+  holder.add(root);
+  const yaw = ship.modelYaw !== undefined
+    ? ship.modelYaw
+    : detectForwardYaw(root, box, size);
+  holder.rotation.y = yaw;
+
+  const longest = Math.max(size.x, size.z);
+  const scale = (TARGET_LEN * (ship.sizeMult ?? 1)) / Math.max(longest, 0.001);
+  holder.scale.setScalar(scale);
+
+  return { holder, autoYaw: yaw, size, scale };
+}
+
+/**
+ * Walk the roster in order and warm every hull, so a hull is already in the
+ * cache by the time it is selected and the LOADING HULL chip never shows.
+ *
+ * Sequential on purpose: one fetch at a time leaves bandwidth for whatever the
+ * player is actually waiting on, and yielding between hulls keeps the GLB parse
+ * from stuttering the hangar diorama. Hulls that share a `cacheKey` are only
+ * fetched once, so this is one pass over the distinct models, not the roster.
+ */
+let preloadPaused = false;
+
+/** Hold the preloader off while something the player is waiting on loads. */
+export function pausePreload(on) { preloadPaused = on; }
+
+export async function preloadShips(onProgress) {
+  for (let i = 0; i < SHIPS.length; i++) {
+    while (preloadPaused) await new Promise((r) => setTimeout(r, 300));
+    try {
+      await loadBase(SHIPS[i]);
+    } catch (err) {
+      console.warn('hull preload failed', SHIPS[i].id, err);
+    }
+    onProgress?.(i + 1, SHIPS.length);
+    await new Promise((r) => setTimeout(r, 60));
+  }
+}
+
+export async function loadShipModel(ship, onProgress) {
+  const base = await loadBase(ship, onProgress);
 
   const inst = base.holder.clone(true);
   // An explicit modelYaw in the roster is authoritative — drop any stale manual

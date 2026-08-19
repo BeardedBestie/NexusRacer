@@ -2,7 +2,10 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { HeightField, TerrainStreamer } from './terrain.js';
 import { Environment } from './environment.js';
-import { SHIPS_BY_ID, resolveStats, loadShipModel, nudgeOrientation, resetOrientation, pickEnemyShips, WEAPONS } from './ships.js';
+import {
+  SHIPS_BY_ID, resolveStats, loadShipModel, nudgeOrientation, resetOrientation,
+  pickEnemyShips, preloadShips, pausePreload, WEAPONS,
+} from './ships.js';
 import { FlightModel, ASSIST } from './flight.js';
 import { CombatSystem, Loadout } from './weapons.js';
 import { CollectibleField, DroneSwarm, PICKUP } from './world.js';
@@ -165,6 +168,9 @@ class Game {
     this.lock = null; this.lockStrength = 0; this.manualLock = false;
     const ship = SHIPS_BY_ID[cfg.ship];
 
+    // Whatever the player is waiting on comes first: park the hull preloader
+    // until they are back in the hangar.
+    pausePreload(true);
     hud.showLoading(`LOADING ${ship.name}`);
     let model;
     try {
@@ -268,7 +274,7 @@ class Game {
     this.runTime = 0;
     this.ambience = 1;
     audio.music(true, 'chillMusic');
-    hud.toast('CHILL VIBES', '#7affd6', 2600);
+    hud.toast('CHILL', '#7affd6', 2600);
   }
 
   _setupRace(hulls = [], defs = []) {
@@ -1002,7 +1008,7 @@ class Game {
 
     if (this.mode === 'chill') {
       d.sub = `${this.drifters.live.length} CRAFT IN RANGE`;
-      d.top = `<div class="lbl">CHILL VIBES</div>
+      d.top = `<div class="lbl">CHILL</div>
         <div style="font-size:19px;color:#e8f4ff">${fmtTime(this.runTime)}</div>
         <div class="lbl" style="margin-top:3px">NO DESTINATION</div>`;
       d.board = '';
@@ -1010,7 +1016,7 @@ class Game {
       d.sub = `${p.pickups} PICKUPS · ${p.kills} KILLS${this.combo > 2 ? ` · COMBO ×${this.combo}` : ''}`;
       const home = this.drones.home;
       const siteKm = home ? f.position.distanceTo(home.pos) / 1000 : null;
-      d.top = `<div class="lbl">FREE RANGE</div>
+      d.top = `<div class="lbl">OPEN</div>
         <div style="font-size:19px;color:#e8f4ff">${fmtTime(this.runTime)}</div>
         <div class="lbl" style="margin-top:3px">${home
           ? (this.drones.engaged
@@ -1029,7 +1035,7 @@ class Game {
         <div style="font-size:34px;font-weight:700;color:${crit ? '#ff4d3d' : '#e8f4ff'};line-height:1">
           ${this.timeLeft.toFixed(1)}</div>
         <div class="lbl" style="margin-top:3px">SECTOR ${this.lap} · GATE ${this.nextGate + 1} · STREAK ${this.streak}</div>`;
-      d.board = `<div class="lbl" style="margin-bottom:5px">CIRCUIT</div>` + board.map((b, i) =>
+      d.board = `<div class="lbl" style="margin-bottom:5px">RING RACE</div>` + board.map((b, i) =>
         `<div class="r ${b.me ? 'me' : ''}"><span><span class="p">${i + 1}</span> ${b.name}</span>
           <span style="color:${b.color}">${Math.round(b.f * NODE_SPACING / 100) / 10}k</span></div>`).join('');
     }
@@ -1156,6 +1162,7 @@ async function useSteering(mode) {
 hud.onSteer = (mode) => { audio.ui(); useSteering(mode); };
 
 function toHangar() {
+  pausePreload(false);
   audio.music(true, 'music');
   hud.setAmbience(1);
   hangar.setInteractive(true);
@@ -1180,6 +1187,15 @@ hud.showSplash(() => {
 });
 // spin something interesting behind the splash
 hangar.select(hud.ship(), () => {});
+
+/**
+ * Warm every hull in roster order behind the splash and the hangar, so a hull is
+ * already in the cache by the time it is picked and the LOADING HULL chip never
+ * gets a chance to show. Kicked off after the previewed hull has been asked for
+ * so the one on screen is never queued behind the other seventeen — and they
+ * share the same promise cache either way, so nothing is fetched twice.
+ */
+preloadShips((done, total) => hud.setPreload(done, total));
 
 addEventListener('keydown', (e) => {
   if (e.code === 'Escape' && game.state === 'play') game.pause();

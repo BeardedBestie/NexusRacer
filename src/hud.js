@@ -1,6 +1,10 @@
 import { SHIPS, WEAPONS, resolveStats } from './ships.js';
 import { IS_TOUCH, STEER } from './touch.js';
 
+const MODES = [
+  { v: 'free', l: 'Open' }, { v: 'race', l: 'Ring Race' }, { v: 'chill', l: 'Chill' },
+];
+
 const GOALS = [
   { v: 0, l: 'Endless' }, { v: 10, l: '10' }, { v: 25, l: '25' }, { v: 50, l: '50' },
 ];
@@ -213,8 +217,53 @@ button,.chip,.tab,.slot,.navbtn{pointer-events:auto}
 .abil .ad{font-size:11px;color:#9db8a0;margin-top:3px;line-height:1.4}
 .derived{font-size:10.5px;color:#6d84a5;line-height:1.7;font-family:ui-monospace,monospace}
 
-.dock{display:flex;align-items:center;gap:22px;padding:14px 26px 18px;
+/* The dock is down to two controls: the gear that opens everything else, and
+   Launch. That is what buys the hull its screen back on a phone. */
+.dock{display:flex;align-items:center;gap:16px;padding:12px 26px 16px;
   background:linear-gradient(0deg,rgba(4,8,20,.94),rgba(4,8,20,0));flex-wrap:wrap}
+.gear{display:flex;align-items:center;gap:9px;padding:10px 16px;cursor:pointer;
+  border:1px solid rgba(120,150,200,.3);border-radius:99px;background:rgba(8,14,32,.6);
+  color:#9db6d6;font-family:inherit;font-size:11.5px;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;transition:.14s;-webkit-tap-highlight-color:transparent}
+.gear svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linejoin:round;flex:0 0 auto}
+.gear:hover{border-color:#5ef2ff;color:#e8f4ff;background:rgba(94,242,255,.12)}
+.gear:hover svg{transform:rotate(35deg)}
+.gear svg{transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.dockread{font-size:11px;letter-spacing:.16em;color:#5b7a9c;text-transform:uppercase}
+
+/* Roster warm-up: a hairline at the very bottom of the hangar, gone once the
+   last hull is cached. */
+#menu #warm{position:absolute;left:0;right:0;bottom:0;height:2px;pointer-events:none;
+  background:rgba(94,242,255,.1);transition:opacity .6s;z-index:6}
+#menu #warm.done{opacity:0}
+#menu #warm b{display:block;height:100%;width:0;
+  background:linear-gradient(90deg,#5ef2ff,#b6ff3d);
+  box-shadow:0 0 8px rgba(94,242,255,.7);transition:width .3s ease-out}
+
+/* ==================== SETTINGS PANEL ==================== */
+#settings{position:absolute;inset:0;z-index:9;display:flex;align-items:center;
+  justify-content:center;padding:20px;background:rgba(3,6,16,.76);
+  backdrop-filter:blur(6px);pointer-events:auto;overflow-y:auto}
+.scard{width:min(430px,100%);max-height:100%;display:flex;flex-direction:column;gap:14px;
+  padding:20px 22px 22px;border:1px solid rgba(94,242,255,.24);border-radius:4px;
+  background:linear-gradient(160deg,rgba(20,32,64,.96),rgba(8,12,28,.98));
+  box-shadow:0 24px 70px rgba(0,0,0,.6);position:relative}
+.scard::before{content:'';position:absolute;top:0;left:0;width:44px;height:2px;background:#5ef2ff}
+.shead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.shead h3{font-size:12px;color:#5ef2ff;letter-spacing:.3em}
+.sclose{width:36px;height:36px;flex:0 0 auto;border:1px solid rgba(120,150,200,.3);
+  border-radius:50%;background:rgba(8,14,32,.6);color:#9db6d6;cursor:pointer;
+  font-family:inherit;font-size:14px;line-height:1;transition:.13s;
+  -webkit-tap-highlight-color:transparent}
+.sclose:hover{border-color:#ff4fd8;color:#ffd8f4;background:rgba(255,79,216,.14)}
+.sbody{display:flex;flex-direction:column;gap:13px;overflow-y:auto;min-height:0}
+.sbody .opt{display:flex;flex-direction:column;align-items:stretch;gap:7px}
+.sbody .opt > .lb{font-size:9px}
+.sbody .chips{flex-wrap:wrap}
+.sbody .keys{max-width:100%;padding-top:4px;border-top:1px solid rgba(120,150,200,.13)}
+.scard .btn{width:100%;padding:13px 0}
+
 .opt{display:flex;align-items:center;gap:8px}
 .opt > .lb{font-size:9.5px;letter-spacing:.24em;color:#5b7a9c}
 .chips{display:flex;gap:5px}
@@ -315,7 +364,6 @@ button,.chip,.tab,.slot,.navbtn{pointer-events:auto}
 @media (max-width:860px){
   .stage{grid-template-columns:180px 1fr}
   .specs{display:none}
-  .keys{display:none}
 }
 /* Phone width: the rail is gone, so the viewport's prev/next is the only way
    through the roster — and the spec sheet folds back in underneath the hull so
@@ -325,19 +373,19 @@ button,.chip,.tab,.slot,.navbtn{pointer-events:auto}
   .rail{display:none}
   /* The hangar canvas runs the full height behind the menu, so the spec sheet
      needs its own ground once it sits on top of the hull rather than beside it. */
-  .specs{display:flex;padding:8px 14px 10px;gap:7px;max-height:26vh;
+  .specs{display:flex;padding:8px 14px 10px;gap:7px;max-height:32vh;
     background:linear-gradient(180deg,rgba(4,8,20,.96),rgba(5,9,22,.99));
     border-top:1px solid rgba(94,242,255,.16)}
   .specs h3{padding-top:0;font-size:9px}
-  .dock{gap:8px 10px;padding:8px 12px 12px}
-  .opt{gap:6px}
-  /* Chips and tabs are the only hit targets left in the dock, so they keep a
-     fingertip's worth of height even as the type shrinks. */
+  .dock{gap:10px;padding:8px 12px 12px}
+  .dockread{display:none}
+  .gear{padding:11px 16px}
   .chip{padding:7px 12px;font-size:11px}
   .topbar{padding:8px 12px;gap:10px}
   .topbar .mark{height:26px}
   .topbar .tabs{flex-wrap:wrap;gap:5px}
-  .tab{padding:8px 11px;font-size:10.5px;letter-spacing:.1em}
+  /* Tabs are a hit target, so they keep a fingertip's height as type shrinks. */
+  .tab{padding:9px 13px;font-size:11px;letter-spacing:.1em}
   .viewport{padding:4px 0 10px}
   /* The hint would otherwise land on the spec sheet's top edge; put it above
      the pill instead of below it. */
@@ -345,25 +393,30 @@ button,.chip,.tab,.slot,.navbtn{pointer-events:auto}
   .draghint{margin:0 0 7px}
   .viewport .title .nm{font-size:clamp(22px,7.2vw,38px)}
   .viewport .title .kl{font-size:10px;letter-spacing:.34em}
-  /* The steering line is the one thing a first-time mobile player cannot read
-     off the deck itself, so it stays; the labelled keys explain themselves and
-     the pause screen carries the full legend. */
-  .keys{display:block;font-size:9.5px;line-height:1.55;max-width:100%}
-  .keys .deckline{display:none}
+  #settings{padding:12px}
+  .scard{padding:16px 16px 18px;gap:12px}
 }
 /* Landscape on a handset: height is the scarce axis. Keep the hull big, let the
    dock scroll rather than shove the launch button off the bottom. */
 @media (orientation:landscape) and (max-height:560px){
   .stage{grid-template-columns:1fr;grid-template-rows:1fr}
-  .rail,.specs,.keys{display:none}
+  .rail,.specs{display:none}
   .topbar{padding:6px 12px}
   .topbar .mark{height:30px}
   .viewport{padding:2px 0 8px}
   .viewport .title .nm{font-size:clamp(20px,4.4vw,34px)}
   .viewport .foot{gap:10px;padding:5px 7px}
   .navbtn{width:42px;height:42px}
-  .dock{padding:6px 12px 10px;gap:10px;max-height:34vh;overflow-y:auto}
+  .dock{padding:6px 12px 10px;gap:10px}
+  .dockread{display:none}
   .draghint{display:none}
+  #settings{padding:10px}
+  .scard{padding:14px 16px 16px;gap:10px;width:min(560px,100%)}
+  .sbody{gap:10px}
+  /* Two option rows abreast: the panel has to fit a 330px-tall landscape phone
+     without the Done button falling off the bottom. */
+  .sbody{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
+  .sbody .keys{grid-column:1/-1}
 }
 
 /* ================= ON-SCREEN CONTROLS (touch builds) =================
@@ -481,6 +534,8 @@ export class HUD {
     this.muted = false;
     this.sens = Number(localStorage.getItem('nexusracer.sens') || 1);
     this.steer = localStorage.getItem('nexusracer.steer') === STEER.TOUCH ? STEER.TOUCH : STEER.TILT;
+    this.settingsOpen = false;
+    this.preloaded = 0;
     this.previewState = 'ready';
   }
 
@@ -527,6 +582,7 @@ export class HUD {
 
   // -------------------------------------------------------------- hangar ---
   showMenu(onLaunch) {
+    this.settingsOpen = false;
     this.splash.classList.add('hidden');
     this.menu.classList.remove('hidden');
     this.hud.classList.remove('on');
@@ -554,6 +610,12 @@ export class HUD {
     this.onPreview?.(this.ship());
   }
 
+  openSettings(on) {
+    this.settingsOpen = on;
+    this.menu.querySelector('#settings')?.classList.toggle('hidden', !on);
+    this.onUi?.();
+  }
+
   /** Force the steering mode in from outside, e.g. when tilt turns out dead. */
   setSteer(mode) {
     this.steer = mode;
@@ -569,6 +631,18 @@ export class HUD {
     const i = SHIPS.findIndex((s) => s.id === this.selectedShip);
     const n = SHIPS.length;
     this.pickShip(SHIPS[(((i + dir) % n) + n) % n].id);
+  }
+
+  /**
+   * Roster warm-up progress: a hairline across the bottom of the hangar that
+   * retires itself when the last hull lands. Deliberately not a dialog — it is
+   * background work the player never has to wait for.
+   */
+  setPreload(done, total) {
+    const bar = this.menu.querySelector('#warm b');
+    if (bar) bar.style.width = `${(done / total * 100).toFixed(1)}%`;
+    if (done >= total) this.menu.querySelector('#warm')?.classList.add('done');
+    this.preloaded = done;
   }
 
   setPreviewState(s) {
@@ -597,9 +671,9 @@ export class HUD {
         <img class="mark" src="${import.meta.env.BASE_URL}nexusracer_logo.png" alt="NEXUS RACER"
              onerror="this.outerHTML='&lt;div class=\'mark-text\'&gt;NEXUS RACER&lt;/div&gt;'">
         <div class="tabs">
-          <div class="tab ${this.selectedMode === 'free' ? 'sel' : ''}" data-mode="free">Free Range</div>
-          <div class="tab ${this.selectedMode === 'race' ? 'sel' : ''}" data-mode="race">Endless Circuit</div>
-          <div class="tab chill ${this.selectedMode === 'chill' ? 'sel' : ''}" data-mode="chill">Chill Vibes</div>
+          ${MODES.map((m) => `
+            <div class="tab ${m.v === 'chill' ? 'chill ' : ''}${this.selectedMode === m.v ? 'sel' : ''}"
+                 data-mode="${m.v}">${m.l}</div>`).join('')}
         </div>
         <div class="spacer"></div>
         <div class="mode-note">${
@@ -672,46 +746,85 @@ export class HUD {
       </div>
 
       <div class="dock">
-        ${this.selectedMode === 'chill' ? '' : `
-        <div class="opt"><div class="lb">GOAL</div><div class="chips">
-          ${GOALS.map((g) => `<div class="chip ${this.goal === g.v ? 'sel' : ''}" data-goal="${g.v}">${g.l}</div>`).join('')}
-        </div></div>`}
-        <div class="opt"><div class="lb">ASSIST</div><div class="chips">
-          <div class="chip ${this.assist === 'assisted' ? 'sel' : ''}" data-assist="assisted">Assisted</div>
-          <div class="chip ${this.assist === 'standard' ? 'sel' : ''}" data-assist="standard">Standard</div>
-        </div></div>
-        ${IS_TOUCH ? `
-        <div class="opt"><div class="lb">STEERING</div><div class="chips">
-          <div class="chip ${this.steer === STEER.TILT ? 'sel' : ''}" data-steer="${STEER.TILT}">Tilt</div>
-          <div class="chip ${this.steer === STEER.TOUCH ? 'sel' : ''}" data-steer="${STEER.TOUCH}">Touch</div>
-        </div></div>` : ''}
-        <div class="opt"><div class="lb">${IS_TOUCH ? 'SENS' : 'MOUSE'}</div><div class="chips">
-          ${SENS.map((x) => `<div class="chip ${this.sens === x.v ? 'sel' : ''}" data-sens="${x.v}">${x.l}</div>`).join('')}
-        </div></div>
-        <div class="opt"><div class="lb">AUDIO</div><div class="chips">
-          <div class="chip ${this.muted ? 'sel' : ''}" data-mute="1">Muted</div>
-          <div class="chip ${this.muted ? '' : 'sel'}" data-mute="0">On</div>
-        </div></div>
+        <button class="gear" id="gear" aria-label="Settings" title="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/>
+            <path d="M19.4 13.6a7.6 7.6 0 0 0 0-3.2l1.9-1.4-1.9-3.3-2.2.9a7.7 7.7 0 0 0-2.8-1.6L14 2.5h-3.8l-.4 2.4a7.7 7.7 0 0 0-2.8 1.6l-2.2-.9L2.9 9l1.9 1.4a7.6 7.6 0 0 0 0 3.2L2.9 15l1.9 3.3 2.2-.9a7.7 7.7 0 0 0 2.8 1.6l.4 2.4H14l.4-2.4a7.7 7.7 0 0 0 2.8-1.6l2.2.9 1.9-3.3-1.9-1.4Z"/>
+          </svg>
+          <span>Settings</span>
+        </button>
+        <div class="dockread">${this.selectedMode === 'chill'
+          ? 'No clock, no goal'
+          : `${this.goal ? `${this.goal} ${this.selectedMode === 'race' ? 'gates' : 'pickups'}` : 'Endless'} · ${
+              this.assist === 'assisted' ? 'Assisted' : 'Standard'}`}</div>
         <div class="spacer"></div>
-        <div class="keys">${IS_TOUCH ? `
-          <div class="steerline"><b>${this.steer === STEER.TOUCH ? 'FINGER' : 'TILT'}</b> ${this.steer === STEER.TOUCH
-            ? 'hold anywhere on the left and move around to steer'
-            : 'lean the handset to bank and dive — tap ⊙ to re-zero'}</div>
-          <div class="deckline">
-            <b>THR</b> rail sets throttle · <b>BST</b> boost · <b>BRK</b> brake<br>
-            <b>FIRE</b> primary · <b>MSL</b> secondary · <b>ABL</b> ability · <b>TGT</b> target · <b>CAM</b> camera
-          </div>
-        ` : `
-          <b>MOUSE</b> virtual stick — holds its bank, so lean into a turn · <b>X</b> recentre<br>
-          <b>W/S</b> throttle · <b>A/D</b> roll · <b>Q/E</b> rudder · <b>SHIFT</b> boost · <b>CTRL</b> brake<br>
-          <b>LMB</b> primary · <b>RMB/F</b> secondary · <b>R</b> ability · <b>C</b> camera ·
-          <b>T</b> cycle target · <b>M</b> mute · <b>ESC</b> pause
-        `}</div>
         <button class="btn" id="launch" ${this.previewState === 'loading' ? 'disabled' : ''}>Launch ▸</button>
+      </div>
+
+      <div id="warm" class="${this.preloaded >= SHIPS.length ? 'done' : ''}"><b style="width:${
+        ((this.preloaded ?? 0) / SHIPS.length * 100).toFixed(1)}%"></b></div>
+
+      <div id="settings" class="${this.settingsOpen ? '' : 'hidden'}">
+        <div class="scard">
+          <div class="shead">
+            <h3>Settings</h3>
+            <button class="sclose" id="sclose" aria-label="Close settings">✕</button>
+          </div>
+          <div class="sbody">
+            ${this.selectedMode === 'chill' ? '' : `
+            <div class="opt"><div class="lb">GOAL</div><div class="chips">
+              ${GOALS.map((g) => `<div class="chip ${this.goal === g.v ? 'sel' : ''}" data-goal="${g.v}">${g.l}</div>`).join('')}
+            </div></div>`}
+            <div class="opt"><div class="lb">ASSIST</div><div class="chips">
+              <div class="chip ${this.assist === 'assisted' ? 'sel' : ''}" data-assist="assisted">Assisted</div>
+              <div class="chip ${this.assist === 'standard' ? 'sel' : ''}" data-assist="standard">Standard</div>
+            </div></div>
+            ${IS_TOUCH ? `
+            <div class="opt"><div class="lb">STEERING</div><div class="chips">
+              <div class="chip ${this.steer === STEER.TILT ? 'sel' : ''}" data-steer="${STEER.TILT}">Tilt</div>
+              <div class="chip ${this.steer === STEER.TOUCH ? 'sel' : ''}" data-steer="${STEER.TOUCH}">Touch</div>
+            </div></div>` : ''}
+            <div class="opt"><div class="lb">${IS_TOUCH ? 'SENS' : 'MOUSE'}</div><div class="chips">
+              ${SENS.map((x) => `<div class="chip ${this.sens === x.v ? 'sel' : ''}" data-sens="${x.v}">${x.l}</div>`).join('')}
+            </div></div>
+            <div class="opt"><div class="lb">AUDIO</div><div class="chips">
+              <div class="chip ${this.muted ? 'sel' : ''}" data-mute="1">Muted</div>
+              <div class="chip ${this.muted ? '' : 'sel'}" data-mute="0">On</div>
+            </div></div>
+            <div class="keys">${IS_TOUCH ? `
+              <div class="steerline"><b>${this.steer === STEER.TOUCH ? 'FINGER' : 'TILT'}</b> ${this.steer === STEER.TOUCH
+                ? 'hold anywhere on the left and move around to steer'
+                : 'lean the handset to bank and dive — tap ⊙ to re-zero'}</div>
+              <div class="deckline">
+                <b>THR</b> rail sets throttle · <b>BST</b> boost · <b>BRK</b> brake<br>
+                <b>FIRE</b> primary · <b>MSL</b> secondary · <b>ABL</b> ability · <b>TGT</b> target · <b>CAM</b> camera
+              </div>
+            ` : `
+              <b>MOUSE</b> virtual stick — holds its bank, so lean into a turn · <b>X</b> recentre<br>
+              <b>W/S</b> throttle · <b>A/D</b> roll · <b>Q/E</b> rudder · <b>SHIFT</b> boost · <b>CTRL</b> brake<br>
+              <b>LMB</b> primary · <b>RMB/F</b> secondary · <b>R</b> ability · <b>C</b> camera ·
+              <b>T</b> cycle target · <b>M</b> mute · <b>ESC</b> pause
+            `}</div>
+          </div>
+          <button class="btn" id="sdone">Done</button>
+        </div>
       </div>
     `;
 
     const q = (sel, fn) => this.menu.querySelectorAll(sel).forEach((n) => { n.onclick = () => fn(n); });
+    // The panel re-renders with the rest of the menu on every change, so its
+    // open state lives on the instance rather than in the DOM.
+    const gear = this.menu.querySelector('#gear');
+    if (gear) gear.onclick = () => this.openSettings(true);
+    for (const id of ['#sclose', '#sdone']) {
+      const n = this.menu.querySelector(id);
+      if (n) n.onclick = () => this.openSettings(false);
+    }
+    // Tapping the backdrop dismisses; clicks inside the card must not.
+    const panel = this.menu.querySelector('#settings');
+    if (panel) {
+      panel.onclick = (e) => { if (e.target === panel) this.openSettings(false); };
+    }
     q('[data-mode]', (n) => { this.selectedMode = n.dataset.mode; this.onUi?.(); this._renderMenu(); });
     q('[data-goal]', (n) => { this.goal = Number(n.dataset.goal); this.onUi?.(); this._renderMenu(); });
     q('[data-assist]', (n) => { this.assist = n.dataset.assist; this.onUi?.(); this._renderMenu(); });
@@ -795,7 +908,7 @@ export class HUD {
     ctx.clearRect(0, 0, W, H);
 
     // Chrome (dish, rings, sweep, rim) can fade out independently of the
-    // contacts, so Chill Vibes can strip the instrument and keep the dots.
+    // contacts, so Chill mode can strip the instrument and keep the dots.
     const chrome = this.chromeAlpha ?? 1;
     const contact = this.keepScanner ? Math.max(0.55, chrome) : 1;
 
@@ -951,7 +1064,7 @@ export class HUD {
       const r = s.r;
       const col = s.locked ? '#ff4d3d' : s.color;
 
-      // Chill Vibes: no brackets, no lock, no threat read — just how far away
+      // Chill mode: no brackets, no lock, no threat read — just how far away
       // the other pilot is, in a calm blue.
       if (s.quiet) {
         // ghosts out alongside the scanner dots, never all the way to nothing
@@ -1019,7 +1132,7 @@ export class HUD {
   }
 
   /**
-   * Global HUD presence, 1 to 0. Chill Vibes eases this toward a 5% ghost over
+   * Global HUD presence, 1 to 0. Chill mode eases this toward a 5% ghost over
    * five minutes so the instruments get out of the way of the view.
    */
   setAmbience(a, keepScanner = false) {
@@ -1033,7 +1146,7 @@ export class HUD {
       return;
     }
 
-    // Chill Vibes: the instruments dissolve completely, but the scanner's dots
+    // Chill mode: the instruments dissolve completely, but the scanner's dots
     // stay — all you are left with is where you are relative to everyone else.
     this.hud.style.opacity = 1;
     this.chromeAlpha = a;
