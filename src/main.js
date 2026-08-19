@@ -14,6 +14,7 @@ import { Track, GateField, AIRacer, RACER_ROSTER, NODE_SPACING, GATE_RADIUS } fr
 import { Input } from './input.js';
 import { TouchControls, IS_TOUCH, STEER } from './touch.js';
 import { HUD } from './hud.js';
+import { icon as hudIcon } from './icons.js';
 import { HangarStage } from './hangar.js';
 import {
   SHIP_RADIUS, CAM_BACK, CAM_UP, CAM_BACK_FAR, CAM_UP_FAR, CAM_LOOK_AHEAD,
@@ -999,44 +1000,52 @@ class Game {
       abilityName: p.ship.ability.name,
       abilityReady: p.abilityCd <= 0,
       abilityCd: p.abilityCd,
+      combo: this.combo,
     };
     if (this.goal) {
       d.goal = this.mode === 'free'
-        ? { label: 'PICKUPS COLLECTED', have: p.pickups, need: this.goal }
-        : { label: 'GATES CLEARED', have: this.gatesCleared, need: this.goal };
+        ? { icon: 'pickup', have: p.pickups, need: this.goal }
+        : { icon: 'gate', have: this.gatesCleared, need: this.goal };
     }
 
+    // The top banner carries the clock and nothing else unless there is
+    // genuinely something to say — a mode label you chose two screens ago is not
+    // worth a permanent line of the screen.
+    const clock = (t) => `<div class="stat clock">${hudIcon('time')}<span class="v">${t}</span></div>`;
+
     if (this.mode === 'chill') {
-      d.sub = `${this.drifters.live.length} CRAFT IN RANGE`;
-      d.top = `<div class="lbl">CHILL</div>
-        <div style="font-size:19px;color:#e8f4ff">${fmtTime(this.runTime)}</div>
-        <div class="lbl" style="margin-top:3px">NO DESTINATION</div>`;
+      d.stats = [['rival', this.drifters.live.length]];
+      d.top = clock(fmtTime(this.runTime));
       d.board = '';
     } else if (this.mode === 'free') {
-      d.sub = `${p.pickups} PICKUPS · ${p.kills} KILLS${this.combo > 2 ? ` · COMBO ×${this.combo}` : ''}`;
+      d.stats = [['pickup', p.pickups], ['kill', p.kills]];
       const home = this.drones.home;
       const siteKm = home ? f.position.distanceTo(home.pos) / 1000 : null;
-      d.top = `<div class="lbl">OPEN</div>
-        <div style="font-size:19px;color:#e8f4ff">${fmtTime(this.runTime)}</div>
-        <div class="lbl" style="margin-top:3px">${home
-          ? (this.drones.engaged
-              ? '<span style="color:#ff4d3d">GARRISON ENGAGED</span>'
-              : `GUARDED CACHE ${siteKm.toFixed(1)}KM`)
-          : 'NO CONTACTS'}</div>`;
+      d.top = clock(fmtTime(this.runTime)) + (home
+        ? (this.drones.engaged
+            ? '<div class="note hot">GARRISON ENGAGED</div>'
+            : `<div class="note">${hudIcon('lock')} ${siteKm.toFixed(1)}KM</div>`)
+        : '');
       d.board = '';
     } else {
       const board = [{ name: 'YOU', f: this.playerF, me: true, color: '#b6ff3d' },
         ...this.racers.map((r) => ({ name: r.name, f: r.f, color: '#' + r.color.toString(16).padStart(6, '0') }))]
         .sort((a, b) => b.f - a.f);
       const myPos = board.findIndex((b) => b.me) + 1;
-      d.sub = `P${myPos}/${board.length} · ${this.gatesCleared} GATES`;
+      d.stats = [['rival', `${myPos}/${board.length}`], ['gate', this.gatesCleared]];
       const crit = this.timeLeft < 6;
-      d.top = `<div class="lbl">TIME</div>
-        <div style="font-size:34px;font-weight:700;color:${crit ? '#ff4d3d' : '#e8f4ff'};line-height:1">
-          ${this.timeLeft.toFixed(1)}</div>
-        <div class="lbl" style="margin-top:3px">SECTOR ${this.lap} · GATE ${this.nextGate + 1} · STREAK ${this.streak}</div>`;
-      d.board = `<div class="lbl" style="margin-bottom:5px">RING RACE</div>` + board.map((b, i) =>
-        `<div class="r ${b.me ? 'me' : ''}"><span><span class="p">${i + 1}</span> ${b.name}</span>
+      d.top = `<div class="stat clock ${crit ? 'crit' : ''}">${hudIcon('time')}<span class="huge">${
+        this.timeLeft.toFixed(1)}</span></div>
+        <div class="note">${hudIcon('gate')} ${this.nextGate + 1} · ${hudIcon('boost')} ${this.streak}</div>`;
+      // A phone shows a three-row window around the player rather than the whole
+      // grid: leader, whoever is next to catch or chase, and you. The full field
+      // is more rows than the top-left corner has before it hits the scanner.
+      const rows = board.map((b, i) => ({ ...b, pos: i + 1 }));
+      const shown = IS_TOUCH && rows.length > 3
+        ? [...new Set([rows[0], rows[Math.max(0, myPos - 2)], rows[myPos - 1]])]
+        : rows;
+      d.board = shown.map((b) =>
+        `<div class="r ${b.me ? 'me' : ''}"><span><span class="p">${b.pos}</span> ${b.name}</span>
           <span style="color:${b.color}">${Math.round(b.f * NODE_SPACING / 100) / 10}k</span></div>`).join('');
     }
     hud.setHUD(d);

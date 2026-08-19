@@ -27,6 +27,7 @@ Open the printed localhost URL. No build step, no backend, no external requests 
   - [The procedural world](#the-procedural-world)
   - [Flight model](#flight-model)
   - [The virtual stick](#the-virtual-stick)
+  - [The instrument set](#the-instrument-set)
   - [Combat and lock-on](#combat-and-lock-on)
   - [Garrisons, not roamers](#garrisons-not-roamers)
   - [Chill mode](#chill-mode)
@@ -254,6 +255,36 @@ in, and `alpha` cancels exactly (it is a rotation about the world vertical, whic
 cannot move gravity), so a wandering magnetometer never shows up as drift. Both
 angles are measured against a pose captured at launch, so "level" is however you
 happen to be holding the handset.
+
+### The instrument set
+
+The HUD is icon-led: a glyph stands in for every label and unit, which is what
+lets what used to be four panels of stacked text read at a glance at 500 m/s.
+Speed is a speedometer and a number; boost, heat and hull are a glyph and a bar
+each, and the *glyph* carries the warning colour so a dying hull registers before
+any bar length has to be judged. Armament is three glyphs that say ready, spent
+or cooling by colour alone.
+
+Weapon names left the HUD entirely. They are fixed by the hull you chose two
+screens ago, so printing them every frame spends pixels telling you something you
+already know; they survive as tooltips on desktop and in the hangar's spec sheet.
+The mode label went the same way — the clock is the only thing the top banner
+carries unless there is genuinely something to say.
+
+Mobile drops another layer: the scanner legend teaches the dot colours once and
+then costs a corner forever, the race board narrows to a three-row window around
+the player instead of the whole grid, and only the *locked* contact gets a text
+label — at race speeds five names and ranges stack into one smear over your own
+ship. Brackets still mark every contact.
+
+Icons come from [game-icons.net](https://game-icons.net) rather than a general UI
+set, because a set drawn for games has a speedometer, an afterburner, a drag
+chute and a gyroscope in it — and those read as this game rather than as a
+dashboard. They are baked into `src/icons.js` by `scripts/icons.mjs`; the 4134-icon
+package stays a devDependency, since name-keyed runtime lookups cannot be
+tree-shaken. Each one was checked at 16px on the HUD's dark ground first, which
+rejected several obvious-sounding picks — `thermometer-hot`, `missile-swarm`,
+`crystal-cluster` and `jet-fighter` all turn to mush at that size.
 
 ### Combat and lock-on
 
@@ -489,6 +520,8 @@ Built with:
 - [Suno](https://suno.com/invite/@beardedbestie) — music
 - [Midjourney](https://www.midjourney.com/) — logo and art direction
 - [ElevenLabs](https://try.elevenlabs.io/gbmvamvgnr30) — sound effects
+- [game-icons.net](https://game-icons.net) — HUD icons, by Lorc, Delapouite and
+  contributors, licensed [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)
 
 **A note on the fleet:** several of the 18 craft share a base mesh and differ
 only by texture — they were re-skinned in Meshy rather than modelled separately.
@@ -510,6 +543,10 @@ holds:
 
 - **Dependencies keep their own licences.** three.js is MIT and its notice must
   be retained in redistributions.
+- **The HUD icons are CC BY 3.0, not CC0.** `src/icons.js` is baked from
+  [game-icons.net](https://game-icons.net) (Lorc, Delapouite and contributors).
+  That licence *does* require attribution, so if you strip the credits above,
+  strip the icons too.
 - **Generated assets are governed by the terms of the tool that made them.**
   The models, music, logo and sound effects came out of Meshy, Suno, Midjourney
   and ElevenLabs, and what you may do with them depends on those services'

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { icon } from './icons.js';
 
 /**
  * Mobile control layer.
@@ -106,13 +107,18 @@ const CSS = `
 #touch .util{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 #touch .acts{display:flex;flex-direction:row-reverse;flex-wrap:wrap-reverse;
   align-items:flex-end;justify-content:flex-start;gap:10px}
+/* Glyphs, not abbreviations: at a glance mid-flight a shape lands faster than
+   three letters, and it does not need to be read. Names live on aria-label. */
 #touch .tbtn{border:1.5px solid rgba(120,150,200,.4);background:rgba(8,14,32,.5);
-  color:#9db6d6;border-radius:50%;font-family:inherit;font-weight:700;letter-spacing:.1em;
-  font-size:11px;width:62px;height:62px;backdrop-filter:blur(3px);
+  color:#9db6d6;border-radius:50%;font-family:inherit;
+  width:62px;height:62px;backdrop-filter:blur(3px);
   display:flex;align-items:center;justify-content:center;transition:.1s;padding:0}
-#touch .tbtn.fire{width:92px;height:92px;font-size:14px;letter-spacing:.16em;
+#touch .tbtn .ico{width:27px;height:27px;fill:currentColor;display:block}
+#touch .tbtn.fire{width:92px;height:92px;
   border-color:rgba(255,79,216,.55);color:#ffb8ee;background:rgba(60,10,44,.42)}
-#touch .tbtn.sm{width:44px;height:44px;font-size:9.5px;letter-spacing:.06em}
+#touch .tbtn.fire .ico{width:44px;height:44px}
+#touch .tbtn.sm{width:44px;height:44px}
+#touch .tbtn.sm .ico{width:20px;height:20px}
 #touch .tbtn.hot{background:rgba(94,242,255,.3);color:#eaffff;border-color:#5ef2ff;
   box-shadow:0 0 22px rgba(94,242,255,.5)}
 #touch .tbtn.fire.hot{background:rgba(255,79,216,.34);border-color:#ff4fd8;
@@ -126,14 +132,18 @@ const CSS = `
 #touch .thr b{position:absolute;left:0;right:0;bottom:0;display:block;
   background:linear-gradient(0deg,rgba(182,255,61,.55),rgba(94,242,255,.4));
   transition:height .05s linear}
-#touch .thr span{position:absolute;left:0;right:0;top:8px;text-align:center;font-size:9px;
-  letter-spacing:.18em;color:#c8dcf2;text-shadow:0 1px 3px #000}
+#touch .thr span{position:absolute;left:0;right:0;top:7px;display:flex;justify-content:center;
+  color:#c8dcf2}
+#touch .thr span .ico{width:18px;height:18px;fill:currentColor;
+  filter:drop-shadow(0 1px 3px #000)}
 #touch .thr em{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:13px;
   font-style:normal;font-weight:700;color:#e8f4ff;text-shadow:0 1px 3px #000}
 
 @media (max-height:430px){
-  #touch .tbtn{width:52px;height:52px;font-size:10px}
-  #touch .tbtn.fire{width:76px;height:76px;font-size:12.5px}
+  #touch .tbtn{width:52px;height:52px}
+  #touch .tbtn .ico{width:23px;height:23px}
+  #touch .tbtn.fire{width:76px;height:76px}
+  #touch .tbtn.fire .ico{width:36px;height:36px}
   #touch .thr{height:132px;width:50px}
 }
 `;
@@ -178,21 +188,21 @@ export class TouchControls {
         </div>
       </div>
       <div class="thr" aria-label="Throttle">
-        <b></b><span>THR</span><em>72</em>
+        <b></b><span>${icon('throttle')}</span><em>72</em>
       </div>
       <div class="deck">
         <div class="util">
-          <button class="tbtn sm" data-tap="camera" aria-label="Camera">CAM</button>
-          <button class="tbtn sm" data-tap="target" aria-label="Cycle target">TGT</button>
-          <button class="tbtn sm" data-tap="recentre" aria-label="Recentre steering">⊙</button>
-          <button class="tbtn sm" data-tap="pause" aria-label="Pause">❚❚</button>
+          <button class="tbtn sm" data-tap="camera" aria-label="Camera">${icon('cam')}</button>
+          <button class="tbtn sm" data-tap="target" aria-label="Cycle target">${icon('lock')}</button>
+          <button class="tbtn sm" data-tap="recentre" aria-label="Recentre steering">${icon('gyro')}</button>
+          <button class="tbtn sm" data-tap="pause" aria-label="Pause">${icon('pause')}</button>
         </div>
         <div class="acts">
-          <button class="tbtn fire" data-hold="primary">FIRE</button>
-          <button class="tbtn" data-hold="secondary">MSL</button>
-          <button class="tbtn" data-tap="ability">ABL</button>
-          <button class="tbtn" data-hold="boost">BST</button>
-          <button class="tbtn" data-hold="brake">BRK</button>
+          <button class="tbtn fire" data-hold="primary" aria-label="Fire primary">${icon('primary')}</button>
+          <button class="tbtn" data-hold="secondary" aria-label="Fire secondary">${icon('secondary')}</button>
+          <button class="tbtn" data-tap="ability" aria-label="Signature ability">${icon('ability')}</button>
+          <button class="tbtn" data-hold="boost" aria-label="Boost">${icon('boost')}</button>
+          <button class="tbtn" data-hold="brake" aria-label="Airbrake">${icon('brake')}</button>
         </div>
       </div>`;
     root.appendChild(el);

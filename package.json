@@ -10,7 +10,8 @@
     "sounds": "node scripts/sound-manifest.mjs",
     "optimize": "node scripts/optimize-assets.mjs",
     "optimize:models": "node scripts/optimize-assets.mjs models",
-    "optimize:audio": "node scripts/optimize-assets.mjs audio"
+    "optimize:audio": "node scripts/optimize-assets.mjs audio",
+    "icons": "node scripts/icons.mjs"
   },
   "keywords": [],
   "author": "Grant Walker",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@gltf-transform/cli": "^4.4.2",
+    "@iconify-json/game-icons": "^1.2.4",
     "vite": "^8.2.1"
   },
   "type": "module"

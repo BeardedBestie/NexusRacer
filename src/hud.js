@@ -1,5 +1,13 @@
 import { SHIPS, WEAPONS, resolveStats } from './ships.js';
 import { IS_TOUCH, STEER } from './touch.js';
+import { icon } from './icons.js';
+
+/** The on-screen deck, spelled out with the same glyphs the buttons carry. */
+const DECK_LEGEND = [
+  ['throttle', 'throttle'], ['boost', 'boost'], ['brake', 'airbrake'],
+  ['primary', 'primary'], ['secondary', 'secondary'], ['ability', 'ability'],
+  ['lock', 'target'], ['cam', 'camera'], ['pause', 'pause'],
+].map(([k, l]) => `<span class="legend">${icon(k)}${l}</span>`).join('');
 
 const MODES = [
   { v: 'free', l: 'Open' }, { v: 'race', l: 'Ring Race' }, { v: 'chill', l: 'Chill' },
@@ -274,14 +282,20 @@ button,.chip,.tab,.slot,.navbtn{pointer-events:auto}
 .dock .spacer{flex:1}
 .keys{font-size:10.5px;color:#5b7a9c;line-height:1.65;max-width:430px}
 .keys b{color:#9db6d6;font-weight:600}
+.keys .ico{width:13px;height:13px;fill:currentColor;color:#9db6d6}
+.keys .steerline{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.keys .deckline{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:5px}
+.legend{display:inline-flex;align-items:center;gap:5px}
+#pause .keys{justify-content:center}
+#pause .keys .steerline,#pause .keys .deckline{justify-content:center}
 
 /* ======================= HUD ======================= */
 #hud{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .4s;z-index:4}
 #hud.on{opacity:1}
 .hcorner{position:absolute;padding:12px 14px;background:rgba(6,10,24,.42);
   border:1px solid rgba(94,242,255,.18);border-radius:3px;backdrop-filter:blur(3px);z-index:2}
-#hLeft{left:22px;bottom:22px;min-width:210px}
-#hRight{right:22px;bottom:22px;min-width:190px;text-align:right}
+#hLeft{left:22px;bottom:22px;min-width:170px}
+#hRight{right:22px;bottom:22px;text-align:right}
 #hTop{left:50%;top:18px;transform:translateX(-50%);text-align:center;min-width:290px}
 #hScore{right:22px;top:18px;text-align:right}
 #hBoard{left:22px;top:18px;min-width:190px}
@@ -291,22 +305,71 @@ button,.chip,.tab,.slot,.navbtn{pointer-events:auto}
 #hRadar .rlegend{display:flex;gap:9px;margin-top:7px;font-size:9px;letter-spacing:.1em;color:#6d88ab}
 #hRadar .rlegend i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;
   vertical-align:middle}
-#hGoal{left:50%;bottom:22px;transform:translateX(-50%);min-width:230px;text-align:center}
+#hGoal{left:50%;bottom:22px;transform:translateX(-50%);min-width:150px;text-align:center}
+#hGoal .stat{justify-content:center}
 #hGoal .track{height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;margin-top:6px}
 #hGoal .track b{display:block;height:100%;background:linear-gradient(90deg,#5ef2ff,#b6ff3d);transition:width .25s}
 
-.big{font-size:34px;font-weight:700;line-height:1;color:#e8f4ff;text-shadow:0 0 16px rgba(94,242,255,.4)}
+.big{font-size:30px;font-weight:700;line-height:1;color:#e8f4ff;text-shadow:0 0 16px rgba(94,242,255,.4)}
+.huge{font-size:34px;font-weight:700;line-height:1;color:inherit}
 .unit{font-size:11px;color:#6d88ab;letter-spacing:.2em;margin-left:5px}
 .lbl{font-size:10px;letter-spacing:.22em;color:#6d88ab}
-.gauge{height:9px;background:rgba(255,255,255,.09);border-radius:2px;overflow:hidden;margin-top:5px}
+
+/* ---- icon-led readouts ----
+   One glyph in place of a label and a unit. Sized in em so an icon tracks the
+   number beside it, and coloured by currentColor so a state class tints both at
+   once. */
+.ico{width:1em;height:1em;fill:currentColor;flex:0 0 auto;display:block}
+.stat{display:flex;align-items:center;gap:7px;color:#8fb0d4}
+.stat .v{font-size:14px;font-weight:600;color:#c8dcf2;font-variant-numeric:tabular-nums}
+.stat.lead{gap:9px;color:#5ef2ff}
+.stat.lead .ico{width:19px;height:19px}
+.stat.trail{margin-top:8px;font-size:13px;opacity:.85}
+.stat .combo{font-size:15px;font-weight:700;color:#ff4fd8;
+  text-shadow:0 0 12px rgba(255,79,216,.6)}
+.statrow{display:flex;gap:13px;margin-top:6px;justify-content:inherit}
+.statrow .stat{font-size:12px}
+.statrow .stat .v{font-size:12.5px}
+#hScore .statrow{justify-content:flex-end}
+
+/* Gauge rows: icon, then bar. The icon carries the warning colour, so a low
+   hull reads before the bar length has to be measured. */
+.grow{display:grid;grid-template-columns:15px 1fr;gap:9px;align-items:center;margin-top:7px;
+  color:#6d88ab}
+.grow.warn{color:#ff4d3d}
+.grow.warn .ico{animation:warnpulse 1s ease-in-out infinite}
+@keyframes warnpulse{0%,100%{opacity:.55}50%{opacity:1}}
+.gauge{height:7px;background:rgba(255,255,255,.09);border-radius:2px;overflow:hidden}
 .gauge b{display:block;height:100%;transition:width .08s linear}
 .g-boost b{background:linear-gradient(90deg,#5ef2ff,#b6ff3d)}
 .g-heat b{background:linear-gradient(90deg,#ffd66b,#ff4d3d)}
 .g-hull b{background:linear-gradient(90deg,#b6ff3d,#5ef2ff)}
 .g-hull.low b{background:linear-gradient(90deg,#ff4d3d,#ffb347)}
-.rowbar{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;margin-top:8px}
-.rowbar .lbl{text-align:left}
+
+/* Armament: three glyphs that say ready / spent / cooling by colour alone. */
+.arms{display:flex;gap:14px;align-items:center;justify-content:flex-end}
+.wchip{display:flex;align-items:center;gap:5px;font-size:15px;font-weight:700;
+  font-variant-numeric:tabular-nums;transition:color .15s}
+.wchip .ico{width:20px;height:20px}
+.wchip.ready{color:#b6ff3d;filter:drop-shadow(0 0 7px rgba(182,255,61,.45))}
+.wchip.hot{color:#ff4d3d;filter:drop-shadow(0 0 8px rgba(255,77,61,.5))}
+.wchip.spent,.wchip.wait{color:#4d6884}
+
+/* Top banner: clock, and a note line only when there is something to say. */
+.clock{justify-content:center;color:#5ef2ff}
+.clock .ico{width:17px;height:17px}
+.clock .v{font-size:20px}
+.clock.crit{color:#ff4d3d}
+.clock.crit .huge{color:#ff4d3d}
+.note{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;
+  font-size:11px;letter-spacing:.14em;color:#6d88ab}
+.note .ico{width:13px;height:13px}
+.note.hot{color:#ff4d3d}
+.rhead{margin-bottom:6px;font-size:11px}
+.rhead .ico{width:14px;height:14px}
+.rhead .v{font-size:11px;letter-spacing:.14em;color:#8fb0d4;font-weight:500}
 #hBoard .r{display:flex;justify-content:space-between;font-size:12.5px;padding:2.5px 0;color:#93aac9}
+#ui.touch #hBoard .r{font-size:11px;padding:1.5px 0;gap:10px}
 #hBoard .r.me{color:#b6ff3d;font-weight:700}
 #hBoard .r .p{width:20px;color:#5b7a9c}
 
@@ -423,19 +486,33 @@ button,.chip,.tab,.slot,.navbtn{pointer-events:auto}
    The thumb deck owns the bottom corners, so the instruments move clear of it
    and everything shrinks a step. Driven by a class main.js sets, not a media
    query, because it tracks whether the deck is actually on screen. */
-#ui.touch .hcorner{padding:9px 11px}
-#ui.touch .big{font-size:24px}
+#ui.touch .hcorner{padding:8px 10px}
+#ui.touch .big{font-size:23px}
+/* Mobile keeps only what is read mid-flight. The scanner legend teaches the dot
+   colours once and then costs a corner of the screen forever; altitude and the
+   note line are glanceable-nice, not load-bearing. */
+#ui.touch #hRadar .rlegend{display:none}
+#ui.touch .stat.trail{display:none}
+#ui.touch .note{display:none}
+#ui.touch .arms{gap:11px}
+#ui.touch .wchip{font-size:13px}
+#ui.touch .wchip .ico{width:17px;height:17px}
+#ui.touch .stat.lead .ico{width:16px;height:16px}
+#ui.touch .statrow{gap:10px;margin-top:4px}
+#ui.touch .grow{grid-template-columns:13px 1fr;gap:7px;margin-top:6px}
 #ui.touch #hRadar{left:calc(12px + env(safe-area-inset-left));
   top:calc(10px + env(safe-area-inset-top));padding:8px}
 #ui.touch #hRadar canvas{width:118px;height:118px}
-#ui.touch #hRadar.shift{top:calc(148px + env(safe-area-inset-top))}
+/* Race mode: the board above the scanner is three rows on a phone, not six, so
+   the scanner sits much closer than the desktop offset assumed. */
+#ui.touch #hRadar.shift{top:calc(92px + env(safe-area-inset-top))}
 #ui.touch #hRadar .rlegend{font-size:8px;gap:6px;margin-top:5px}
 #ui.touch #hBoard{left:calc(12px + env(safe-area-inset-left));
   top:calc(10px + env(safe-area-inset-top));min-width:150px;font-size:11px}
 #ui.touch #hScore{right:calc(12px + env(safe-area-inset-right));
   top:calc(10px + env(safe-area-inset-top))}
 #ui.touch #hRight{right:calc(12px + env(safe-area-inset-right));bottom:auto;
-  top:calc(86px + env(safe-area-inset-top));min-width:0;max-width:44vw}
+  top:calc(78px + env(safe-area-inset-top));min-width:0;max-width:52vw}
 #ui.touch #hGoal{bottom:auto;top:calc(96px + env(safe-area-inset-top));min-width:170px}
 #ui.touch #hLeft{left:calc(12px + env(safe-area-inset-left));
   bottom:calc(204px + env(safe-area-inset-bottom));min-width:172px}
@@ -456,7 +533,7 @@ button,.chip,.tab,.slot,.navbtn{pointer-events:auto}
   #ui.touch #hLeft{left:calc(82px + env(safe-area-inset-left));
     bottom:calc(14px + env(safe-area-inset-bottom));min-width:0;max-width:34vw}
   #ui.touch #hRadar canvas{width:96px;height:96px}
-  #ui.touch #hRadar.shift{top:calc(126px + env(safe-area-inset-top))}
+  #ui.touch #hRadar.shift{top:calc(86px + env(safe-area-inset-top))}
 }
 `;
 
@@ -476,7 +553,7 @@ export class HUD {
       <div id="hud">
         <div id="hBoard" class="hcorner"></div>
         <div id="hRadar" class="hcorner">
-          <div class="lbl" style="margin-bottom:6px">SCANNER · <span id="rrange">6.0</span>KM</div>
+          <div class="stat rhead">${icon('scan')}<span class="v"><span id="rrange">6.0</span>KM</span></div>
           <canvas width="176" height="176"></canvas>
           <div class="rlegend" id="rlegend"></div>
         </div>
@@ -794,11 +871,8 @@ export class HUD {
             <div class="keys">${IS_TOUCH ? `
               <div class="steerline"><b>${this.steer === STEER.TOUCH ? 'FINGER' : 'TILT'}</b> ${this.steer === STEER.TOUCH
                 ? 'hold anywhere on the left and move around to steer'
-                : 'lean the handset to bank and dive — tap ⊙ to re-zero'}</div>
-              <div class="deckline">
-                <b>THR</b> rail sets throttle · <b>BST</b> boost · <b>BRK</b> brake<br>
-                <b>FIRE</b> primary · <b>MSL</b> secondary · <b>ABL</b> ability · <b>TGT</b> target · <b>CAM</b> camera
-              </div>
+                : `lean the handset to bank and dive — tap ${icon('gyro')} to re-zero`}</div>
+              <div class="deckline">${DECK_LEGEND}</div>
             ` : `
               <b>MOUSE</b> virtual stick — holds its bank, so lean into a turn · <b>X</b> recentre<br>
               <b>W/S</b> throttle · <b>A/D</b> roll · <b>Q/E</b> rudder · <b>SHIFT</b> boost · <b>CTRL</b> brake<br>
@@ -861,30 +935,39 @@ export class HUD {
   hideLoading() { this.el.loading.classList.add('hidden'); }
 
   // ----------------------------------------------------------------- hud ---
+  /**
+   * The whole instrument set is icon-led: a glyph replaces every label and unit,
+   * which is what lets four panels of stacked text collapse into readouts a
+   * glance can take in at speed. Weapon *names* are gone from the HUD entirely —
+   * they are fixed by the hull you picked, so they cost pixels every frame to
+   * tell you something you already know. They survive as tooltips on desktop.
+   */
   setHUD(d) {
     this.el.left.innerHTML = `
-      <div class="lbl">VELOCITY</div>
-      <div><span class="big">${Math.round(d.speed)}</span><span class="unit">M/S</span></div>
-      <div class="rowbar"><div class="lbl">BST</div><div class="gauge g-boost"><b style="width:${d.boost * 100}%"></b></div></div>
-      <div class="rowbar"><div class="lbl">HEAT</div><div class="gauge g-heat"><b style="width:${d.heat * 100}%"></b></div></div>
-      <div class="rowbar"><div class="lbl">HULL</div><div class="gauge g-hull ${d.hull < 0.3 ? 'low' : ''}"><b style="width:${d.hull * 100}%"></b></div></div>`;
+      <div class="stat lead">${icon('speed')}<span class="big">${Math.round(d.speed)}</span></div>
+      <div class="grow">${icon('boost')}<div class="gauge g-boost"><b style="width:${d.boost * 100}%"></b></div></div>
+      <div class="grow ${d.heat > 0.82 ? 'warn' : ''}">${icon('heat')}<div class="gauge g-heat"><b style="width:${d.heat * 100}%"></b></div></div>
+      <div class="grow ${d.hull < 0.3 ? 'warn' : ''}">${icon('hull')}<div class="gauge g-hull ${d.hull < 0.3 ? 'low' : ''}"><b style="width:${d.hull * 100}%"></b></div></div>
+      <div class="stat trail">${icon('alt')}<span class="v">${Math.round(d.alt)}</span></div>`;
+
     this.el.right.innerHTML = `
-      <div class="lbl">ALTITUDE</div>
-      <div><span class="big">${Math.round(d.alt)}</span><span class="unit">M</span></div>
-      <div style="margin-top:8px" class="lbl">AGL ${Math.round(d.agl)}m</div>
-      <div style="margin-top:6px;font-size:13px;color:#c8dcf2">${d.weaponName} ·
-        <span style="color:${d.overheat ? '#ff4d3d' : '#b6ff3d'}">${d.overheat ? 'OVERHEAT' : 'READY'}</span></div>
-      <div style="font-size:13px;color:#ffb347">${d.secondaryName} ×${d.ammo}</div>
-      <div style="margin-top:6px;font-size:12px;color:${d.abilityReady ? '#b6ff3d' : '#5c7a9c'}">
-        ◈ ${d.abilityName} ${d.abilityReady ? '[R]' : Math.ceil(d.abilityCd) + 's'}</div>`;
-    this.el.score.innerHTML = `<div class="lbl">SCORE</div>
-      <div><span class="big">${d.score.toLocaleString()}</span></div>
-      ${d.sub ? `<div class="lbl" style="margin-top:4px">${d.sub}</div>` : ''}`;
+      <div class="arms">
+        <div class="wchip ${d.overheat ? 'hot' : 'ready'}" title="${d.weaponName}">${icon('primary')}</div>
+        <div class="wchip ${d.ammo ? 'ready' : 'spent'}" title="${d.secondaryName}">${icon('secondary')}<span>${d.ammo}</span></div>
+        <div class="wchip ${d.abilityReady ? 'ready' : 'wait'}" title="${d.abilityName}">${icon('ability')}${
+          d.abilityReady ? '' : `<span>${Math.ceil(d.abilityCd)}</span>`}</div>
+      </div>`;
+
+    this.el.score.innerHTML = `
+      <div class="stat lead">${icon('score')}<span class="big">${d.score.toLocaleString()}</span>${
+        d.combo > 2 ? `<span class="combo">×${d.combo}</span>` : ''}</div>
+      ${d.stats?.length ? `<div class="statrow">${d.stats.map(([k, v]) =>
+        `<span class="stat">${icon(k)}<span class="v">${v}</span></span>`).join('')}</div>` : ''}`;
 
     if (d.goal) {
       this.el.goal.style.display = '';
-      this.el.goal.innerHTML = `<div class="lbl">${d.goal.label}</div>
-        <div style="font-size:19px;color:#e8f4ff;margin-top:2px">${d.goal.have} / ${d.goal.need}</div>
+      this.el.goal.innerHTML = `
+        <div class="stat">${icon(d.goal.icon)}<span class="v">${d.goal.have} / ${d.goal.need}</span></div>
         <div class="track"><b style="width:${Math.min(100, (d.goal.have / d.goal.need) * 100)}%"></b></div>`;
     } else this.el.goal.style.display = 'none';
 
@@ -1122,11 +1205,16 @@ export class HUD {
         ctx.fillStyle = s.hp01 > 0.4 ? '#b6ff3d' : '#ff4d3d';
         ctx.fillRect(s.x - bw / 2, s.y + r + 7, bw * s.hp01, 3);
       }
-      ctx.fillStyle = col;
-      ctx.font = '10px ui-monospace, monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${(s.dist / 1000).toFixed(1)}km${s.name ? ' · ' + s.name : ''}`,
-        s.x, s.y + r + (s.hp01 < 1 ? 22 : 18));
+      // A phone screen cannot carry a name and a range under every contact — at
+      // race speeds five of them stack into one illegible smear over the ship.
+      // Brackets still mark all of them; only the lock gets words.
+      if (!IS_TOUCH || s.locked) {
+        ctx.fillStyle = col;
+        ctx.font = '10px ui-monospace, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${(s.dist / 1000).toFixed(1)}km${s.name ? ' · ' + s.name : ''}`,
+          s.x, s.y + r + (s.hp01 < 1 ? 22 : 18));
+      }
     }
     ctx.globalAlpha = 1;
   }
@@ -1241,12 +1329,11 @@ export class HUD {
         <button class="btn" id="res">Resume</button>
         <button class="btn ghost" id="men">Hangar</button>
       </div>
-      <div style="font-size:11.5px;color:#6d84a5;max-width:440px;text-align:center;line-height:1.7">${IS_TOUCH ? `
-        ${this.steer === STEER.TOUCH
-          ? 'FINGER hold anywhere on the left of the glass and move around to steer'
-          : 'TILT lean the handset to bank and dive'} · ⊙ re-zeroes the steering<br>
-        THR rail sets throttle · BST boost · BRK brake<br>
-        FIRE primary · MSL secondary · ABL ability · TGT target · CAM camera` : `
+      <div class="keys" style="max-width:460px;text-align:center;margin:0 auto">${IS_TOUCH ? `
+        <div class="steerline">${this.steer === STEER.TOUCH
+          ? 'Hold anywhere on the left of the glass and move around to steer'
+          : `Lean the handset to bank and dive · ${icon('gyro')} re-zeroes it`}</div>
+        <div class="deckline">${DECK_LEGEND}</div>` : `
         MOUSE virtual stick (holds its bank) · X recentre · W/S throttle · A/D roll · Q/E rudder<br>
         SHIFT boost · CTRL brake<br>
         LMB primary · RMB/F secondary · R ability · T cycle target · C camera · M mute`}</div>`;
